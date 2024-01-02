@@ -3,8 +3,6 @@ package dbClient
 import (
 	"database/sql"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/jifuy/commongo/dbClient/dm"
 	"time"
 )
 
@@ -23,7 +21,7 @@ type DbInfo struct {
 	MaxIdleConn int
 }
 
-func SetUpDb(m DbInfo) error {
+func SetUpDb(m DbInfo) (*sql.DB, error) {
 	var openUrl string
 	switch m.DbType {
 	case "mysql":
@@ -34,7 +32,7 @@ func SetUpDb(m DbInfo) error {
 
 	sDb, err := sql.Open(m.DbType, openUrl)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 	sDb.SetConnMaxLifetime(time.Second * 20)
 	if m.MaxOpenConn < 1 {
@@ -45,8 +43,8 @@ func SetUpDb(m DbInfo) error {
 	}
 
 	if err = sDb.Ping(); err != nil {
-		return err
+		return nil, err
 	}
 	DbClients[m.DbName] = sDb
-	return nil
+	return nil, nil
 }
