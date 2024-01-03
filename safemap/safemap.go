@@ -1,6 +1,8 @@
 package safemap
 
-import "sync"
+import (
+	"sync"
+)
 
 const (
 	copyThreshold = 1000 //删的不到1000开始拷贝
@@ -14,24 +16,24 @@ const (
 // SafeMap provides a map alternative to avoid memory leak.
 // This implementation is not needed until issue below fixed.
 // https://github.com/golang/go/issues/20135
-type SafeMap struct {
+type SafeMap[K comparable, V any] struct {
 	lock        sync.RWMutex
 	deletionOld int
 	deletionNew int
-	dirtyOld    map[any]any
-	dirtyNew    map[any]any
+	dirtyOld    map[K]V
+	dirtyNew    map[K]V
 }
 
 // NewSafeMap returns a SafeMap.
-func NewSafeMap() *SafeMap {
-	return &SafeMap{
-		dirtyOld: make(map[any]any),
-		dirtyNew: make(map[any]any),
+func NewSafeMap[K comparable, V any]() *SafeMap[K, V] {
+	return &SafeMap[K, V]{
+		dirtyOld: make(map[K]V),
+		dirtyNew: make(map[K]V),
 	}
 }
 
 // Del deletes the value with the given key from m.
-func (m *SafeMap) Del(key any) {
+func (m *SafeMap[K, V]) Del(key K) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -48,20 +50,20 @@ func (m *SafeMap) Del(key any) {
 		}
 		m.dirtyOld = m.dirtyNew
 		m.deletionOld = m.deletionNew
-		m.dirtyNew = make(map[any]any)
+		m.dirtyNew = make(map[K]V)
 		m.deletionNew = 0
 	}
 	if m.deletionNew >= maxDeletion && len(m.dirtyNew) < copyThreshold {
 		for k, v := range m.dirtyNew {
 			m.dirtyOld[k] = v
 		}
-		m.dirtyNew = make(map[any]any)
+		m.dirtyNew = make(map[K]V)
 		m.deletionNew = 0
 	}
 }
 
 // Get gets the value with the given key from m.
-func (m *SafeMap) Get(key any) (any, bool) {
+func (m *SafeMap[K, V]) Get(key K) (V, bool) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
@@ -75,7 +77,7 @@ func (m *SafeMap) Get(key any) (any, bool) {
 
 // Range calls f sequentially for each key and value present in the map.
 // If f returns false, range stops the iteration.
-func (m *SafeMap) Range(f func(key, val any) bool) {
+func (m *SafeMap[K, V]) Range(f func(key K, val V) bool) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
@@ -92,7 +94,7 @@ func (m *SafeMap) Range(f func(key, val any) bool) {
 }
 
 // Set sets the value into m with the given key.
-func (m *SafeMap) Set(key, value any) {
+func (m *SafeMap[K, V]) Set(key K, value V) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -112,17 +114,17 @@ func (m *SafeMap) Set(key, value any) {
 }
 
 // Size returns the size of m.
-func (m *SafeMap) Size() int {
+func (m *SafeMap[K, V]) Size() int {
 	m.lock.RLock()
 	size := len(m.dirtyOld) + len(m.dirtyNew)
 	m.lock.RUnlock()
 	return size
 }
 
-func (m *SafeMap) Keys() []any {
+func (m *SafeMap[K, V]) Keys() []K {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	var keys []any
+	var keys []K
 	for k := range m.dirtyOld {
 		keys = append(keys, k)
 	}

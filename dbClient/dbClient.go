@@ -19,6 +19,7 @@ type DbInfo struct {
 	DataBase    string //连接的库名
 	MaxOpenConn int
 	MaxIdleConn int
+	Dsn         string
 }
 
 func SetUpDb(m DbInfo) (*sql.DB, error) {
@@ -28,6 +29,9 @@ func SetUpDb(m DbInfo) (*sql.DB, error) {
 		openUrl = fmt.Sprintf("%s:%s@%s(%s:%s)/%s", m.UserName, m.PassWord, "tcp", m.Host, m.Port, m.DataBase) + "?charset=utf8mb4&parseTime=true&loc=Local"
 	case "dm":
 		openUrl = fmt.Sprintf("%s://%s:%s@%s:%s", "dm", m.UserName, m.PassWord, m.Host, m.Port)
+	}
+	if m.Dsn != "" {
+		openUrl = m.Dsn
 	}
 
 	sDb, err := sql.Open(m.DbType, openUrl)
