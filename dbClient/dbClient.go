@@ -33,10 +33,9 @@ func SetUpDb(m DbInfo) (*sql.DB, error) {
 	if m.Dsn != "" {
 		openUrl = m.Dsn
 	}
-
 	sDb, err := sql.Open(m.DbType, openUrl)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	sDb.SetConnMaxLifetime(time.Second * 20)
 	if m.MaxOpenConn < 1 {
@@ -50,5 +49,5 @@ func SetUpDb(m DbInfo) (*sql.DB, error) {
 		return nil, err
 	}
 	DbClients[m.DbName] = sDb
-	return nil, nil
+	return sDb, nil
 }
