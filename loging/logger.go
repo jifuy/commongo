@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -40,7 +41,17 @@ func SetLogFile(name string) {
 	std.appName = name
 
 	fileName := name + ".log"
-	read, _ := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	read, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		// 获取文件所在目录
+		dir := filepath.Dir(fileName)
+		err1 := os.MkdirAll(dir, 0777)
+		if err1 != nil {
+			fmt.Println("无法创建目录:", err1)
+			return
+		}
+		read, err = os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	}
 	std.outFileWriter = read
 
 	go func() {
@@ -61,7 +72,7 @@ func SetLogFile(name string) {
 			//	删除多余日志文件
 			sevenDaysAgo := now.AddDate(0, 0, -7) // 计算7天前的时间
 			// 打开目录
-			dirPath := "logs"
+			dirPath := filepath.Dir(fileName)
 			dir, err := os.Open(dirPath)
 			if err != nil {
 				fmt.Println(err)
