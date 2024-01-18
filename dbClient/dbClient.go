@@ -1,9 +1,11 @@
 package dbClient
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 	logging "github.com/jifuy/commongo/loging"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -217,4 +219,138 @@ func DescribeTable(SqlDb *sql.DB, table string) (TableDescribe, error) {
 		Base: fieldMap,
 	}
 	return td, nil
+}
+
+func Insert(SqlDb *sql.DB, table string, fieldData map[string]interface{}, describe TableDescribe) (string, error) {
+	isDescribe := describe.Base != nil
+
+	var insertSql bytes.Buffer
+	insertSql.WriteString("insert into ")
+	insertSql.WriteString(table)
+	insertSql.WriteString(" set ")
+	//去空
+	var tempValue = make(map[string]string, 0)
+	for k, v := range fieldData {
+		_, ok := describe.Base[k]
+		if isDescribe && !ok {
+			continue
+		}
+		vStr := `""`
+		if v != nil {
+			switch v.(type) {
+			case time.Time:
+				vStr = `"` + v.(time.Time).Format(time.DateTime) + `"`
+			default:
+				vStr = StringValueMysql(v)
+			}
+		}
+		if vStr == `""` {
+			continue
+		}
+		tempValue[k] = vStr
+	}
+	//赋值
+	l := len(tempValue)
+	i := 0
+	for k, v := range tempValue {
+		i++
+		insertSql.WriteString(k)
+		insertSql.WriteString("=")
+		insertSql.WriteString(v)
+		if i < l {
+			insertSql.WriteString(", ")
+		}
+	}
+	insertSql.WriteString(";")
+	logging.Debug("insertSql:", insertSql.String())
+	_, err2 := SqlDb.Exec(insertSql.String())
+	logging.Info("[Sql] Exec : " + insertSql.String())
+	if err2 != nil {
+		logging.Error("[Sql] Error : " + err2.Error())
+	}
+	return insertSql.String(), err2
+}
+
+func StringValueMysql(i interface{}) string {
+	if i == nil {
+		return ""
+	}
+	if reflect.ValueOf(i).Kind() == reflect.String {
+		str := i.(string)
+		str = strings.Replace(str, `"`, `\"`, -1)
+		if len(str) > 1 && string(str[len(str)-1]) == `\` {
+			str += `\`
+		}
+		return `"` + str + `"`
+	}
+	var buf bytes.Buffer
+	stringValue(reflect.ValueOf(i), 0, &buf)
+	return buf.String()
+}
+
+func stringValue(v reflect.Value, indent int, buf *bytes.Buffer) {
+	for v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	fmt.Println("xxxxxxxxxxx", v.Kind())
+	switch v.Kind() {
+	case reflect.Struct:
+		buf.WriteString("{\n")
+		for i := 0; i < v.Type().NumField(); i++ {
+			ft := v.Type().Field(i)
+			fv := v.Field(i)
+			if ft.Name[0:1] == strings.ToLower(ft.Name[0:1]) {
+				continue
+			}
+			if (fv.Kind() == reflect.Ptr || fv.Kind() == reflect.Slice) && fv.IsNil() {
+				continue
+			}
+			buf.WriteString(strings.Repeat(" ", indent+2))
+			buf.WriteString(ft.Name + ": ")
+			if tag := ft.Tag.Get("sensitive"); tag == "true" {
+				buf.WriteString("<sensitive>")
+			} else {
+				stringValue(fv, indent+2, buf)
+			}
+			buf.WriteString(",\n")
+		}
+		buf.WriteString("\n" + strings.Repeat(" ", indent) + "}")
+
+	case reflect.Slice:
+		nl, id, id2 := "", "", ""
+		if v.Len() > 3 {
+			nl, id, id2 = "\n", strings.Repeat(" ", indent), strings.Repeat(" ", indent+2)
+		}
+		buf.WriteString("[" + nl)
+		for i := 0; i < v.Len(); i++ {
+			buf.WriteString(id2)
+			stringValue(v.Index(i), indent+2, buf)
+
+			if i < v.Len()-1 {
+				buf.WriteString("," + nl)
+			}
+		}
+		buf.WriteString(nl + id + "]")
+
+	case reflect.Map:
+		buf.WriteString("{\n")
+		for i, k := range v.MapKeys() {
+			buf.WriteString(strings.Repeat(" ", indent+2))
+			buf.WriteString(k.String() + ": ")
+			stringValue(v.MapIndex(k), indent+2, buf)
+
+			if i < v.Len()-1 {
+				buf.WriteString(",\n")
+			}
+		}
+		buf.WriteString("\n" + strings.Repeat(" ", indent) + "}")
+
+	default:
+		format := "%v"
+		switch v.Interface().(type) {
+		case string:
+			format = "%q"
+		}
+		_, _ = fmt.Fprintf(buf, format, v.Interface())
+	}
 }
