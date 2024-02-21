@@ -49,6 +49,8 @@ func SetUpDb(m DbInfo) (*sql.DB, error) {
 	if m.MaxIdleConn < 1 {
 		m.MaxIdleConn = 5
 	}
+	sDb.SetMaxOpenConns(m.MaxOpenConn)
+	sDb.SetMaxIdleConns(m.MaxIdleConn)
 
 	if err = sDb.Ping(); err != nil {
 		return nil, err

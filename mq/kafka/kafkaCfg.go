@@ -15,17 +15,6 @@ import (
 	"time"
 )
 
-var Producer sarama.SyncProducer
-var KfkConsumer sarama.ConsumerGroup
-
-func kfkConfig() *sarama.Config {
-	config := sarama.NewConfig()
-	config.Producer.RequiredAcks = sarama.WaitForAll          // 发送完数据需要leader和follow都确认
-	config.Producer.Partitioner = sarama.NewRandomPartitioner // 新选出一个partition
-	config.Producer.Return.Successes = true                   // 成功交付的消息将在success channel返回
-	return config
-}
-
 func NewUUIDStr() string {
 	return strings.ReplaceAll(uuid.NewV4().String(), "-", "")
 }

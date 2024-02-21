@@ -12,7 +12,7 @@ func TestNewMQ2(t *testing.T) {
 	var mq1, ch, _ = NewProducerMQ(mqCfg)
 	defer ch()
 	for i := 0; i < 3; i++ {
-		err := mq1.Producer("unios-alarm-notify", "", "", []byte("Msg+"+fmt.Sprint(i)))
+		err := mq1.Producer("unios-alarm-notify", "_", "", []byte("Msg+"+fmt.Sprint(i)))
 		if err != nil {
 			fmt.Println("记录消息后续发送")
 		}
