@@ -74,10 +74,10 @@ func UpdateSql(SqlDb *sql.DB, tableName string, upFields map[string]interface{},
 	}
 
 	updateSQL := fmt.Sprintf("UPDATE %s SET %s WHERE %s", tableName, strings.Join(updateFields, ", "), strings.Join(whereFields, " and "))
-	logging.Debug(updateSQL)
+	logging.InfoF(updateSQL)
 	// 执行更新操作
 	updateValues = append(updateValues, whereValues...)
-	logging.DebugF("参数：%#v", updateValues)
+	logging.InfoF("参数：%s", fmt.Sprintf(updateSQL, updateValues...))
 	result, err := SqlDb.Exec(updateSQL, updateValues...)
 
 	//sqlExec := fmt.Sprintf("UPDATE %s SET k_respara = \"%s\" WHERE k_sumalarmid = \"%s\"", tableName, infos.ResPara, infos.MainAlarmId)
@@ -91,7 +91,7 @@ func UpdateSql(SqlDb *sql.DB, tableName string, upFields map[string]interface{},
 		logging.Error(err)
 		return 0, err
 	}
-	logging.DebugF("Updated %d rows\n", rowsAffected)
+	logging.InfoF("Updated %d rows\n", rowsAffected)
 	return rowsAffected, nil
 }
 
