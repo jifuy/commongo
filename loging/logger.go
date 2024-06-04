@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -55,6 +56,11 @@ func SetLogFile(name string) {
 	std.outFileWriter = read
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println("无法创建目录:", string(debug.Stack()))
+			}
+		}()
 		for {
 			//凌晨时刻更新
 			now := time.Now()
