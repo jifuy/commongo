@@ -1,6 +1,7 @@
 package mq
 
 import (
+	"fmt"
 	"github.com/jifuy/commongo/mq/kafka"
 	"github.com/jifuy/commongo/mq/rocket"
 )
@@ -23,13 +24,27 @@ type MqCfg struct {
 }
 
 type KafkaCfg struct {
+	Version string //kafka 版本
 	Brokers string //必填
-	Group   string //消费者时 填写
+
+	Group    string //消费者时 填写 消费组
+	Assignor string //消费者时 负载均衡策略  sticky  roundrobin range
 
 	SaslEnable bool   //有认证为true
-	Algorithm  string //加密形式 sha512 sha256 plain
+	Algorithm  string //加密形式 sha512 sha256 plain oauthbearer gssapi
 	UserName   string
 	PassWord   string
+	//gssapi配置
+	Realm              string
+	ServiceName        string
+	KeyTabPath         string
+	KerberosConfigPath string
+	// 配置TLS（如果需要）
+	UseTLS    bool
+	VerifySSL bool
+	CertFile  string
+	KeyFile   string
+	CaFile    string
 }
 
 type RabbitCfg struct {
@@ -52,23 +67,37 @@ func NewProducerMQ(mqChg MqCfg) (IProducer, func() error, error) {
 	switch mqChg.MqType { // mq 设置的类型
 	case "kafka":
 		var config = kafka.Config{
+			Version: mqChg.Kafka.Version,
 			Brokers: mqChg.Kafka.Brokers,
+
+			SaslEnable: mqChg.Kafka.SaslEnable,
+			Algorithm:  mqChg.Kafka.Algorithm,
+			UserName:   mqChg.Kafka.UserName,
+			PassWord:   mqChg.Kafka.PassWord,
+
+			Realm:              mqChg.Kafka.Realm,
+			ServiceName:        mqChg.Kafka.ServiceName,
+			KeyTabPath:         mqChg.Kafka.KeyTabPath,
+			KerberosConfigPath: mqChg.Kafka.KerberosConfigPath,
+
+			UseTLS:    mqChg.Kafka.UseTLS,
+			VerifySSL: mqChg.Kafka.VerifySSL,
+			CertFile:  mqChg.Kafka.CertFile,
+			KeyFile:   mqChg.Kafka.KeyFile,
+			CaFile:    mqChg.Kafka.CaFile,
 		}
 		config.InitSarama()
 		return kafka.NewKafkaProducer(config)
 	case "rocket":
 		var config = rocket.Config{
 			Brokers:      mqChg.RocketMq.Brokers,
-			Group:        mqChg.RocketMq.Group,
 			UserName:     mqChg.RocketMq.UserName,
 			PassWord:     mqChg.RocketMq.PassWord,
 			InstanceName: mqChg.RocketMq.InstanceName,
-			MsgMod:       mqChg.RocketMq.MsgMod,
-			MaxSpan:      mqChg.RocketMq.MaxSpan,
 		}
 		return rocket.NewRocketProducer(config)
 	default:
-		return nil, nil, nil
+		return nil, nil, fmt.Errorf("mq type error %s", mqChg.MqType)
 	}
 }
 

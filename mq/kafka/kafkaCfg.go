@@ -41,7 +41,7 @@ type Config struct {
 	// UserName is the authentication identity (authcid) to present for SASL/PLAIN or SASL/SCRAM authentication
 	UserName string
 	// Password for SASL/PLAIN authentication
-	Password  string
+	PassWord  string
 	Algorithm string
 	CertFile  string
 	CaFile    string
@@ -120,12 +120,13 @@ func (c *Config) InitSarama() error {
 			// the current implementation is limited to plaintext (SASL/PLAIN) authentication
 			saramaConfig.Net.SASL.Enable = true
 			saramaConfig.Net.SASL.User = c.UserName
-			saramaConfig.Net.SASL.Password = c.Password
+			saramaConfig.Net.SASL.Password = c.PassWord
 			saramaConfig.Net.SASL.Handshake = true
 			if c.Algorithm == "plain" || c.Algorithm == sarama.SASLTypePlaintext {
 				saramaConfig.Net.SASL.Mechanism = sarama.SASLTypePlaintext
 			} else if c.Algorithm == "oauthbearer" || c.Algorithm == sarama.SASLTypeOAuth {
 				saramaConfig.Net.SASL.TokenProvider = c.TokenProvider
+				saramaConfig.Net.SASL.Mechanism = sarama.SASLTypeOAuth
 			} else if c.Algorithm == "sha512" || c.Algorithm == sarama.SASLTypeSCRAMSHA512 {
 				saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA512} }
 				saramaConfig.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA512
