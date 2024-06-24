@@ -21,7 +21,7 @@ type Esearch struct {
 	Client *elasticsearch.Client
 }
 
-func NewEsClient(config esutil.EsCfg) *Esearch {
+func NewEsClient(config esutil.EsCfg) (*Esearch, error) {
 	cfg := elasticsearch.Config{
 		Addresses:  config.Addresses,
 		MaxRetries: 3,
@@ -30,14 +30,18 @@ func NewEsClient(config esutil.EsCfg) *Esearch {
 	cfg.Password = config.PassWord
 	es, err := elasticsearch.NewClient(cfg)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	q1, err := es.Info()
+	if err != nil {
+		logging.Error("ES连接失败！", err)
+		return nil, err
+	}
 	seelog.Debug("ES连接成功！", q1)
 	ESClient = &Esearch{
 		Client: es,
 	}
-	return ESClient
+	return ESClient, nil
 }
 
 func (e *Esearch) EsSearch(indexes []string, query string) (esutil.ResponseBody, error) {

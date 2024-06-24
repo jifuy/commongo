@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/cihub/seelog"
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"github.com/jifuy/commongo/es/esutil"
@@ -20,7 +21,7 @@ type Esearch struct {
 	Client *elasticsearch.Client
 }
 
-func NewEsClient(config esutil.EsCfg) *Esearch {
+func NewEsClient(config esutil.EsCfg) (*Esearch, error) {
 	cfg := elasticsearch.Config{
 		Addresses:  config.Addresses,
 		MaxRetries: 3,
@@ -29,15 +30,18 @@ func NewEsClient(config esutil.EsCfg) *Esearch {
 	cfg.Password = config.PassWord
 	es, err := elasticsearch.NewClient(cfg)
 	if err != nil {
-		logging.Error("ES连接失败！", err)
-		return nil
+		return nil, err
 	}
 	q1, err := es.Info()
-	logging.Debug("ES连接成功！", q1)
+	if err != nil {
+		logging.Error("ES连接失败！", err)
+		return nil, err
+	}
+	seelog.Debug("ES连接成功！", q1)
 	ESClient = &Esearch{
 		Client: es,
 	}
-	return ESClient
+	return ESClient, nil
 }
 
 func (e *Esearch) EsSearch(indexes []string, query string) (esutil.ResponseBody, error) {

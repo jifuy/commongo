@@ -12,7 +12,7 @@ type EsCli interface {
 	BatchSend(index string, docType string, content map[string]string) error
 }
 
-func NewEsClient(config esutil.EsCfg) EsCli {
+func NewEsClient(config esutil.EsCfg) (EsCli, error) {
 	switch config.Version {
 	case 7:
 		return es7.NewEsClient(config)
