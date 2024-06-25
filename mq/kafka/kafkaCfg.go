@@ -101,12 +101,13 @@ func (c *Config) InitSarama() error {
 	// A user-provided string sent with every request to the brokers for logging,
 	// debugging, and auditing purposes. Defaults to "sarama", but you should
 	// probably set it to something specific to your application.
-	saramaConfig.ClientID = "unitechs_base_client"
+	saramaConfig.ClientID = "kafka_client"
 	// Whether to maintain a full set of metadata for all topics, or just
 	// the minimal set that has been necessary so far. The full set is simpler
 	// and usually more convenient, but can take up a substantial amount of
 	// memory if you have many topics and partitions. Defaults to true.
-	saramaConfig.Metadata.Full = false
+
+	//saramaConfig.Metadata.Full = false // Defaults to true.
 
 	ver, err := sarama.ParseKafkaVersion(c.Version)
 	if err != nil {
