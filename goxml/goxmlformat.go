@@ -13,7 +13,7 @@ import (
 */
 
 func identStr(indent int) string {
-	return strings.Repeat("   ", indent)
+	return strings.Repeat("    ", indent)
 }
 
 // FormatXML - Returns xmlStr formatted for Pretty Printing
@@ -47,7 +47,7 @@ func FormatXML(xmlStr string) string {
 			continue
 		}
 
-		if rolling == "<![CDATA[" {
+		if strings.HasSuffix(rolling, "<![CDATA[") {
 			inCDATA = true
 			continue
 		}
@@ -78,7 +78,8 @@ func FormatXML(xmlStr string) string {
 					fmt.Fprintf(&final, "\n%s%s\n", identStr(indent), bufStr)
 				}
 				prevFinished = true
-
+				hitNiner = false
+				rolling = ""
 			} else {
 				// handles start tags <start>
 				bufStr = strings.TrimSpace(bufStr)
