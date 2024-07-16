@@ -1,6 +1,7 @@
 package redisClient
 
 import (
+	"fmt"
 	"github.com/gomodule/redigo/redis"
 )
 
@@ -144,4 +145,76 @@ func (r *RedisInfo) ScanKeys(match string, count int) ([]string, error) {
 	}
 
 	return keys, nil
+}
+
+func (r *RedisInfo) Expireat(key string, timeAt int64) error {
+	conn := r.Redis.Get()
+	defer conn.Close()
+	num, err := redis.Int(conn.Do("EXPIREAT", key, timeAt))
+	if err != nil {
+		return err
+	}
+	if num != 1 {
+		return fmt.Errorf("redis Expireat error: no key (%s) exist", key)
+	}
+	return nil
+}
+
+func (r *RedisInfo) Eval(script string, keys []string, args ...interface{}) (interface{}, error) {
+	conn := r.Redis.Get()
+	defer conn.Close()
+	cmdargs := make([]interface{}, 0)
+	//EVAL script numkeys key [key ...] arg [arg ...]
+	cmdargs = append(cmdargs, script)
+	cmdargs = append(cmdargs, len(keys))
+	for _, key := range keys {
+		cmdargs = append(cmdargs, key)
+	}
+	cmdargs = append(cmdargs, args...)
+	v, err := conn.Do("EVAL", cmdargs...)
+	if err != nil {
+		return v, err
+	}
+	return v, nil
+}
+
+func (r *RedisInfo) AddLock(key, value string, ex int) bool {
+	conn := r.Redis.Get()
+	defer conn.Close()
+	luaScript := `	
+	local val = redis.call("GET", KEYS[1])
+	if not val then
+		redis.call("setex", KEYS[1], ARGV[2], ARGV[1])
+		return 2
+	elseif val == ARGV[1] then
+		return redis.call("expire", KEYS[1], ARGV[2])
+	else
+		return 0
+	end`
+	//EVAL script numkeys key [key ...] arg [arg ...]
+	v, err := redis.Int(conn.Do("EVAL", luaScript, 1, key, value, ex))
+	if err != nil {
+		fmt.Println("EVAL error", err)
+		return false
+	}
+	if v == 0 {
+		return false
+	}
+	return true
+}
+
+func (r *RedisInfo) DelLock(key, value string) bool {
+	conn := r.Redis.Get()
+	defer conn.Close()
+	luaScript := "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end"
+	//EVAL script numkeys key [key ...] arg [arg ...]
+	v, err := redis.Int(conn.Do("EVAL", luaScript, 1, key, value))
+	if err != nil {
+		fmt.Println("EVAL error", err)
+		return false
+	}
+	if v == 0 {
+		return false
+	}
+	return true
 }
