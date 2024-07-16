@@ -1,7 +1,7 @@
 package redisClient
 
 import (
-	"log"
+	"fmt"
 	"strings"
 	"time"
 
@@ -9,7 +9,12 @@ import (
 	"github.com/mna/redisc"
 )
 
-type RedisConf struct {
+type RedCLi interface {
+	Get() redis.Conn
+	Close() error
+}
+
+type RedisInfo struct {
 	Type     string
 	Host     string
 	Port     string
@@ -17,23 +22,20 @@ type RedisConf struct {
 	Db       int
 	PoolSize int
 	Address  string
+
+	Redis RedCLi
 }
 
-type RedCLi interface {
-	Get() redis.Conn
-	Close() error
-}
-
-func NewRedCLi(r RedisConf) RedCLi {
+func NewRedCLi(r RedisInfo) (RedCLi, error) {
 	if r.Type == "cluster" {
-		clu := NewRedisCliClu(r)
-		return clu
+		clu, err := NewRedisCliClu(r)
+		return clu, err
 	}
-	node := NewRedisCliNode(r)
-	return node
+	node, err := NewRedisCliNode(r)
+	return node, err
 }
 
-func NewRedisCliNode(r RedisConf) *redis.Pool {
+func NewRedisCliNode(r RedisInfo) (*redis.Pool, error) {
 	address := r.Host + ":" + r.Port
 	if r.Address != "" {
 		address = r.Address
@@ -58,23 +60,27 @@ func NewRedisCliNode(r RedisConf) *redis.Pool {
 			}
 			if r.PassWord != "" {
 				if _, err = conn.Do("AUTH", r.PassWord); err != nil {
-					log.Fatalf("AUTH failed: %v", err)
 					conn.Close()
 					return nil, err
 				}
 			}
 			if _, err = conn.Do("SELECT", r.Db); err != nil {
-				log.Fatalf("SELECT Db failed: %v", err)
 				conn.Close()
 				return nil, err
 			}
 			return conn, err
 		},
 	}
-	return RedisPool
+	c := RedisPool.Get()
+	reply, err := c.Do("PING")
+	if err != nil {
+		fmt.Println(reply, err)
+		return RedisPool, err
+	}
+	return RedisPool, nil
 }
 
-func NewRedisCliClu(r RedisConf) *redisc.Cluster {
+func NewRedisCliClu(r RedisInfo) (*redisc.Cluster, error) {
 	cluster := &redisc.Cluster{
 		StartupNodes: strings.Split(r.Address, ","),
 		DialOptions: []redis.DialOption{
@@ -86,9 +92,15 @@ func NewRedisCliClu(r RedisConf) *redisc.Cluster {
 	}
 	// 初始化集群
 	if err := cluster.Refresh(); err != nil {
-		log.Fatalf("Refresh failed: %v", err)
+		return nil, err
 	}
-	return cluster
+	c := cluster.Get()
+	reply, err := c.Do("PING")
+	if err != nil {
+		fmt.Println(reply, err)
+		return nil, err
+	}
+	return cluster, nil
 }
 
 func createPool(addr string, opts ...redis.DialOption) (*redis.Pool, error) {
