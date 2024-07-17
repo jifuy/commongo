@@ -29,17 +29,17 @@ func (r *RedisInfo) Get(key string) ([]byte, error) {
 func (r *RedisInfo) Del(key string) error {
 	conn := r.Redis.Get()
 	defer conn.Close()
-	_, err := conn.Do("Del", key)
+	_, err := conn.Do("DEL", key)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *RedisInfo) Hset(key, mapkey, fields string) error {
+func (r *RedisInfo) Hset(key, mapkey, field string) error {
 	conn := r.Redis.Get()
 	defer conn.Close()
-	_, err := redis.Int(conn.Do("hSet", key, mapkey, fields))
+	_, err := redis.Int(conn.Do("HSET", key, mapkey, field))
 	if err != nil {
 		return err
 	}
@@ -70,36 +70,89 @@ func (r *RedisInfo) Hdel(key string, fields ...string) error {
 		args = append(args, field)
 	}
 
-	_, err := conn.Do("hDel", args...)
+	_, err := conn.Do("HDEL", args...)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *RedisInfo) Hget(key, fields string) ([]byte, error) {
+func (r *RedisInfo) Hget(key, field string) ([]byte, error) {
 	// 从池里获取连接
 	conn := r.Redis.Get()
 	// 用完后将连接放回连接池
 	defer conn.Close()
-	reply, err := redis.Bytes(conn.Do("hGet", key, fields))
+	reply, err := redis.Bytes(conn.Do("HGET", key, field))
 	if err != nil {
 		return reply, err
 	}
 	return reply, nil
 }
 
+func (r *RedisInfo) Hmget(key string, fields ...string) (map[string]string, error) {
+	// Get a connection from the pool
+	conn := r.Redis.Get()
+	// Ensure the connection is closed after we're done
+	defer conn.Close()
+
+	// Prepare arguments for the HMGET command
+	args := make([]interface{}, 0)
+	args = append(args, key)
+	for _, field := range fields {
+		args = append(args, field)
+	}
+
+	// Execute the HMGET command
+	values, err := redis.Values(conn.Do("HMGET", args...))
+	if err != nil {
+		return nil, err
+	}
+	// Create a map to store the results
+	resultMap := make(map[string]string)
+
+	// Iterate over the fields and values to populate the resultMap
+	for i, field := range fields {
+		if i < len(values) {
+			value, ok := values[i].([]byte)
+			if !ok {
+				continue
+				//return nil, fmt.Errorf("unexpected value type for field %s", field)
+			}
+			resultMap[field] = string(value)
+		} else {
+			// If there are more fields than values, set the value to an empty string
+			resultMap[field] = ""
+		}
+	}
+
+	return resultMap, nil
+}
+
 func (r *RedisInfo) Hgetall(key string) (map[string]string, error) {
-	var AllMap = make(map[string]string, 0)
 	// 从池里获取连接
 	conn := r.Redis.Get()
 	// 用完后将连接放回连接池
 	defer conn.Close()
-	AllMap, err := redis.StringMap(conn.Do("hGetAll", key))
+	AllMap, err := redis.StringMap(conn.Do("HGETALL", key))
 	if err != nil {
 		return AllMap, err
 	}
 	return AllMap, nil
+}
+
+func (r *RedisInfo) Hexists(key, field string) (bool, error) {
+	// 从池里获取连接
+	conn := r.Redis.Get()
+	// 用完后将连接放回连接池
+	defer conn.Close()
+	num, err := redis.Int(conn.Do("HEXISTS", key, field))
+	if err != nil {
+		return false, err
+	}
+	if num != 1 {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (r *RedisInfo) Keys(likekey string) ([]string, error) {
@@ -217,4 +270,48 @@ func (r *RedisInfo) DelLock(key, value string) bool {
 		return false
 	}
 	return true
+}
+
+func (r *RedisInfo) ZrangeWithScores(key string, start, end int) (map[string]string, error) {
+	// 从池里获取连接
+	conn := r.Redis.Get()
+	// 用完后将连接放回连接池
+	defer conn.Close()
+	AllMap, err := redis.StringMap(conn.Do("ZRANGE", key, start, end, "withscores"))
+	if err != nil {
+		return AllMap, err
+	}
+	return AllMap, nil
+}
+
+func (r *RedisInfo) ZrangebyscoreWithScores(key string, start, end int64) (map[string]string, error) {
+	// 从池里获取连接
+	conn := r.Redis.Get()
+	// 用完后将连接放回连接池
+	defer conn.Close()
+	AllMap, err := redis.StringMap(conn.Do("ZRANGEBYSCORE", key, start, end, "WITHSCORES"))
+	if err != nil {
+		return AllMap, err
+	}
+	return AllMap, nil
+}
+
+func (r *RedisInfo) Zadd(key string, score int64, value string) error {
+	conn := r.Redis.Get()
+	defer conn.Close()
+	_, err := conn.Do("ZADD", key, score, value)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *RedisInfo) Zrem(key string, value string) (int, error) {
+	conn := r.Redis.Get()
+	defer conn.Close()
+	num, err := redis.Int(conn.Do("ZREM", key, value))
+	if err != nil {
+		return num, err
+	}
+	return num, nil
 }
