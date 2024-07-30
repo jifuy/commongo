@@ -169,12 +169,18 @@ func (c *Config) InitSarama() error {
 	if c.Assignor != "" {
 		// Strategy for allocating topic partitions to members (default BalanceStrategyRange)
 		switch c.Assignor {
+		//case "sticky":
+		//	saramaConfig.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategySticky
+		//case "roundrobin":
+		//	saramaConfig.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
+		//case "range":
+		//	saramaConfig.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRange
 		case "sticky":
-			saramaConfig.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategySticky
+			saramaConfig.Consumer.Group.Rebalance.GroupStrategies = []sarama.BalanceStrategy{sarama.NewBalanceStrategySticky()}
 		case "roundrobin":
-			saramaConfig.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
+			saramaConfig.Consumer.Group.Rebalance.GroupStrategies = []sarama.BalanceStrategy{sarama.NewBalanceStrategyRoundRobin()}
 		case "range":
-			saramaConfig.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRange
+			saramaConfig.Consumer.Group.Rebalance.GroupStrategies = []sarama.BalanceStrategy{sarama.NewBalanceStrategyRange()}
 		default:
 			return errors.Errorf("Unrecognized consumer group partition assignor: %s, acceptable assignors are sticky/roundrobin/range", c.Assignor)
 		}

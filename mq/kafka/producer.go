@@ -2,7 +2,7 @@ package kafka
 
 import (
 	"github.com/IBM/sarama"
-	logging "github.com/jifuy/commongo/loging"
+	"github.com/jifuy/commongo/loging"
 	"strings"
 )
 
@@ -42,9 +42,9 @@ func (m MQKafkaService) Producer(topic string, key, _ string, data []byte) error
 	// 发送消息
 	pid, offset, err := m.P.SendMessage(msg)
 	if err != nil {
-		logging.Error("send msg failed, err:", err)
+		loging.Error("send msg failed, err:", err)
 		return err
 	}
-	logging.InfoF("pid:%v offset:%v\n", pid, offset)
+	loging.InfoF("pid:%v offset:%v\n", pid, offset)
 	return nil
 }
