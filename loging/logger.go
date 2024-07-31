@@ -1,4 +1,4 @@
-package logging
+package loging
 
 import (
 	"bytes"
@@ -106,6 +106,31 @@ func SetLogFile(name string) {
 		}
 	}()
 
+	//如果当前日志文件大小超过1M，则创建新的日志文件
+	//go func() {
+	//	for {
+	//		time.Sleep(time.Second * 10)
+	//		if std.outFileWriter != nil {
+	//			fileInfo, err := std.outFileWriter.Stat()
+	//			if err != nil {
+	//				fmt.Println(err)
+	//				return
+	//			}
+	//			if fileInfo.Size() > 1*1024*1024 {
+	//				fileNameOld := name + "_" + time.Now().Format("20060102130405") + ".log"
+	//				std.outFileWriter.Close()
+	//				os.Rename(name+".log", fileNameOld)
+	//				readNew, err := os.OpenFile(name+".log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	//				if err != nil {
+	//					fmt.Println(err)
+	//					return
+	//				}
+	//				std.outFileWriter = readNew
+	//			}
+	//		}
+	//	}
+	//}()
+
 }
 
 // SetAppName 设置项目名称
@@ -160,9 +185,9 @@ func ParseLogLevel(levelstr string) (Level, error) {
 	switch strings.ToLower(levelstr) {
 	case "print":
 		return Level(0), nil
-	case "info":
-		return Level(1), nil
 	case "debug":
+		return Level(1), nil
+	case "info":
 		return Level(2), nil
 	case "warn":
 		return Level(3), nil
@@ -176,7 +201,7 @@ func ParseLogLevel(levelstr string) (Level, error) {
 	return 0, fmt.Errorf("invalid log level '%s' (info, debug, warn, error, fatal)", levelstr)
 }
 
-var NowLevel = Level(2) //默认debug
+var NowLevel = Level(1) //默认debug
 
 func (l *logger) Log(level Level, args string, times int) {
 	var buffer bytes.Buffer
@@ -224,12 +249,16 @@ func Print(args ...interface{}) {
 	std.Log(0, fmt.Sprint(args...), 2)
 }
 
-func PrintF(format string, args ...interface{}) {
+func Printf(format string, args ...interface{}) {
 	std.Log(0, fmt.Sprintf(format, args...), 2)
 }
 
 func Info(args ...interface{}) {
 	std.Log(1, fmt.Sprint(args...), 2)
+}
+
+func Infof(format string, args ...interface{}) {
+	std.Log(1, fmt.Sprintf(format, args...), 2)
 }
 
 func InfoF(format string, args ...interface{}) {
@@ -244,12 +273,16 @@ func InfoTimes(times int, args ...interface{}) {
 
 // InfoFTimes
 // times 意思是打印第几级函数调用
-func InfoFTimes(times int, format string, args ...interface{}) {
+func InfofTimes(times int, format string, args ...interface{}) {
 	std.Log(1, fmt.Sprintf(format, args...), times)
 }
 
 func Debug(args ...interface{}) {
 	std.Log(2, fmt.Sprint(args...), 2)
+}
+
+func Debugf(format string, args ...interface{}) {
+	std.Log(2, fmt.Sprintf(format, args...), 2)
 }
 
 func DebugF(format string, args ...interface{}) {
@@ -260,7 +293,7 @@ func DebugTimes(times int, args ...interface{}) {
 	std.Log(2, fmt.Sprint(args...), times)
 }
 
-func DebugFTimes(times int, format string, args ...interface{}) {
+func DebugfTimes(times int, format string, args ...interface{}) {
 	std.Log(2, fmt.Sprintf(format, args...), times)
 }
 
@@ -268,7 +301,7 @@ func Warn(args ...interface{}) {
 	std.Log(3, fmt.Sprint(args...), 2)
 }
 
-func WarnF(format string, args ...interface{}) {
+func Warnf(format string, args ...interface{}) {
 	std.Log(3, fmt.Sprintf(format, args...), 2)
 }
 
@@ -284,6 +317,10 @@ func Error(args ...interface{}) {
 	std.Log(4, fmt.Sprint(args...), 2)
 }
 
+func Errorf(format string, args ...interface{}) {
+	std.Log(4, fmt.Sprintf(format, args...), 2)
+}
+
 func ErrorF(format string, args ...interface{}) {
 	std.Log(4, fmt.Sprintf(format, args...), 2)
 }
@@ -292,7 +329,7 @@ func ErrorTimes(times int, args ...interface{}) {
 	std.Log(4, fmt.Sprint(args...), times)
 }
 
-func ErrorFTimes(times int, format string, args ...interface{}) {
+func ErrorfTimes(times int, format string, args ...interface{}) {
 	std.Log(4, fmt.Sprintf(format, args...), times)
 }
 

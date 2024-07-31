@@ -104,12 +104,20 @@ func NewRedisCliClu(r RedisInfo) (*redisc.Cluster, error) {
 }
 
 func createPool(addr string, opts ...redis.DialOption) (*redis.Pool, error) {
+	node := addr
+	parts := strings.Split(addr, ":")
+	if len(parts) > 2 { // Assuming it's an IPv6 address
+		if !strings.HasPrefix(strings.Join(parts[:len(parts)-1], ":"), "[") {
+			node = "[" + strings.Join(parts[:len(parts)-1], ":") + "]:" + parts[len(parts)-1]
+		}
+	}
+	fmt.Println("redis node addr: ", node)
 	return &redis.Pool{
 		MaxIdle:     100,
 		MaxActive:   0,
 		IdleTimeout: time.Minute,
 		Dial: func() (redis.Conn, error) {
-			return redis.Dial("tcp", addr, opts...)
+			return redis.Dial("tcp", node, opts...)
 		},
 		TestOnBorrow: func(c redis.Conn, t time.Time) error {
 			_, err := c.Do("PING")
