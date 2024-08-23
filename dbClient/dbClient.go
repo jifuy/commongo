@@ -64,7 +64,11 @@ func UpdateSql(logging loging.Logger, SqlDb *sql.DB, tableName string, upFields 
 	updateValues := make([]interface{}, 0)
 	for key, value := range upFields {
 		updateFields = append(updateFields, fmt.Sprintf("%s = ?", key))
-		updateValues = append(updateValues, value)
+		if value == nil || value.(string) == "NULL" {
+			updateValues = append(updateValues, nil)
+		} else {
+			updateValues = append(updateValues, value)
+		}
 	}
 	whereFields := make([]string, 0)
 	whereValues := make([]interface{}, 0)
@@ -77,7 +81,7 @@ func UpdateSql(logging loging.Logger, SqlDb *sql.DB, tableName string, upFields 
 	logging.Infof(updateSQL)
 	// 执行更新操作
 	updateValues = append(updateValues, whereValues...)
-	logging.Infof("update sql：%s", fmt.Sprintf(strings.Replace(updateSQL, "?", "'%v'", -1), updateValues...))
+	logging.Infof("update sql：%s", fmt.Sprintf(strings.Replace(updateSQL, "?", "%v", -1), updateValues...))
 	result, err := SqlDb.Exec(updateSQL, updateValues...)
 
 	if err != nil {
