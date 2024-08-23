@@ -39,7 +39,7 @@ func TestMQCus3(t *testing.T) {
 	var cus_, ch_, _ = NewConsumerMQ(mqCfg)
 	defer ch_()
 	ch2_, _ := cus_.Consumer("unios-alarm-notify", "", "", func(b []byte) bool {
-		loging.Debug("记录消息后续发送", "---++", string(b))
+		loging.Log.Debug("记录消息后续发送", "---++", string(b))
 		return true
 	})
 	defer ch2_()
@@ -51,9 +51,11 @@ func TestMQCus3(t *testing.T) {
 
 func TestNewMQ4(t *testing.T) {
 	var mqCfg = MqCfg{MqType: "kafka", Kafka: KafkaCfg{Brokers: "127.0.0.1:9092,127.0.0.1:9093"}}
+	//var mqCfg = MqCfg{MqType: "kafka", Kafka: KafkaCfg{Brokers: "192.168.5.189:9094", SaslEnable: false, Group: "xiaofeizhu", UserName: "kafka", PassWord: "c!E0ULhH", Algorithm: "plain"}}
 	var mq1, ch, err = NewProducerMQ(mqCfg)
 	if err != nil {
 		fmt.Println("1111111err--------", err)
+		return
 	}
 	time.Sleep(3 * time.Second)
 	defer ch()
@@ -62,7 +64,7 @@ func TestNewMQ4(t *testing.T) {
 		if err != nil {
 
 		}
-		loging.Debug("记录消息后续发送", err)
+		loging.Log.Debug("记录消息后续发送", err)
 		time.Sleep(1 * time.Second)
 	}
 	t.Log("hello world")
@@ -70,7 +72,7 @@ func TestNewMQ4(t *testing.T) {
 
 // rocket消费者，组不能相同
 func TestMQCus5(t *testing.T) {
-	var mqCfg = MqCfg{MqType: "kafka", Kafka: KafkaCfg{Brokers: "127.0.0.1:9092,127.0.0.1:9093", Group: "xiaofeizhu"}}
+	var mqCfg = MqCfg{MqType: "kafka", Kafka: KafkaCfg{Brokers: "192.168.5.189:9094", SaslEnable: true, Group: "xiaofeizhu", UserName: "kafka", PassWord: "c!E0ULhH", Algorithm: "plain"}}
 
 	var cus, ch, _ = NewConsumerMQ(mqCfg)
 	defer ch()
@@ -83,13 +85,13 @@ func TestMQCus5(t *testing.T) {
 	time.Sleep(5 * time.Second)
 	fmt.Println("------------------------------------------------------")
 	//mqCfg.RocketMq.Group = "xiaofeizhu3"
-	var cus_, ch_, _ = NewConsumerMQ(mqCfg)
-	defer ch_()
-	ch2_, _ := cus_.Consumer("my-topic", "", "", func(b []byte) bool {
-		fmt.Println("---++", string(b))
-		return true
-	})
-	defer ch2_()
+	//var cus_, ch_, _ = NewConsumerMQ(mqCfg)
+	//defer ch_()
+	//ch2_, _ := cus_.Consumer("my-topic", "", "", func(b []byte) bool {
+	//	fmt.Println("---++", string(b))
+	//	return true
+	//})
+	//defer ch2_()
 
 	time.Sleep(300 * time.Second)
 	t.Log("hello world")

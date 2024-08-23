@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-var std = newStd()
+var Log = NewStd()
 
 type logger struct {
 	appName         string
@@ -25,19 +25,21 @@ type logger struct {
 	outServicePort  int
 	outServiceConn  *net.UDPConn
 	outServiceLevel []int
+	NowLevel        Level //默认debug
 }
 
-func newStd() *logger {
+func NewStd() *logger {
 	return &logger{
 		terminal:        true,
 		outFile:         false,
 		outService:      false,
 		outServiceLevel: []int{3, 4, 5},
+		NowLevel:        Level(1),
 	}
 }
 
 // SetLogFile 设置日志文件名称, 文件名称可含路径(绝对或相对)
-func SetLogFile(name string) {
+func (std *logger) SetLogFile(name string) {
 	std.outFile = true
 	std.appName = name
 
@@ -134,11 +136,11 @@ func SetLogFile(name string) {
 }
 
 // SetAppName 设置项目名称
-func SetAppName(name string) {
+func (std *logger) SetAppName(name string) {
 	std.appName = name
 }
 
-func SetOutService(ip string, port int) {
+func (std *logger) SetOutService(ip string, port int) {
 	var err error
 	std.outService = true
 	std.outServiceIp = ip
@@ -147,25 +149,25 @@ func SetOutService(ip string, port int) {
 	dstAddr := &net.UDPAddr{IP: net.ParseIP(std.outServiceIp), Port: std.outServicePort}
 	std.outServiceConn, err = net.DialUDP("udp", srcAddr, dstAddr)
 	if err != nil {
-		Error(err)
+		std.Error(err)
 	}
 }
 
-func SetOutServiceWarn2Panic() {
+func (std *logger) SetOutServiceWarn2Panic() {
 	std.outServiceLevel = []int{3, 4, 5}
 }
 
-func SetOutServiceInfo2Panic() {
+func (std *logger) SetOutServiceInfo2Panic() {
 	std.outServiceLevel = []int{1, 2, 3, 4, 5}
 }
 
-func Close() {
+func (std *logger) Close() {
 	std.terminal = false
 	std.outFile = false
 	std.outService = false
 }
 
-func DisableTerminal() {
+func (std *logger) DisableTerminal() {
 	std.terminal = false
 }
 
@@ -201,13 +203,11 @@ func ParseLogLevel(levelstr string) (Level, error) {
 	return 0, fmt.Errorf("invalid log level '%s' (info, debug, warn, error, fatal)", levelstr)
 }
 
-var NowLevel = Level(1) //默认debug
-
 func (l *logger) Log(level Level, args string, times int) {
 	var buffer bytes.Buffer
 	buffer.WriteString(time.Now().Format("2006-01-02 15:04:05.000 "))
 	//判断日志级别
-	if level < NowLevel {
+	if level < l.NowLevel {
 		return
 	}
 	buffer.WriteString(LevelMap[level])
@@ -245,99 +245,127 @@ func (l *logger) Log(level Level, args string, times int) {
 	}
 }
 
-func Print(args ...interface{}) {
+func (std *logger) Print(args ...interface{}) {
 	std.Log(0, fmt.Sprint(args...), 2)
 }
 
-func Printf(format string, args ...interface{}) {
+func (std *logger) Printf(format string, args ...interface{}) {
 	std.Log(0, fmt.Sprintf(format, args...), 2)
 }
 
-func Info(args ...interface{}) {
+func (std *logger) Info(args ...interface{}) {
 	std.Log(1, fmt.Sprint(args...), 2)
 }
 
-func Infof(format string, args ...interface{}) {
+func (std *logger) Infof(format string, args ...interface{}) {
 	std.Log(1, fmt.Sprintf(format, args...), 2)
 }
 
-func InfoF(format string, args ...interface{}) {
+func (std *logger) InfoF(format string, args ...interface{}) {
 	std.Log(1, fmt.Sprintf(format, args...), 2)
 }
 
 // InfoTimes
 // times 意思是打印第几级函数调用
-func InfoTimes(times int, args ...interface{}) {
+func (std *logger) InfoTimes(times int, args ...interface{}) {
 	std.Log(1, fmt.Sprint(args...), times)
 }
 
 // InfoFTimes
 // times 意思是打印第几级函数调用
-func InfofTimes(times int, format string, args ...interface{}) {
+func (std *logger) InfofTimes(times int, format string, args ...interface{}) {
 	std.Log(1, fmt.Sprintf(format, args...), times)
 }
 
-func Debug(args ...interface{}) {
+func (std *logger) Debug(args ...interface{}) {
 	std.Log(2, fmt.Sprint(args...), 2)
 }
 
-func Debugf(format string, args ...interface{}) {
+func (std *logger) Debugf(format string, args ...interface{}) {
 	std.Log(2, fmt.Sprintf(format, args...), 2)
 }
 
-func DebugF(format string, args ...interface{}) {
+func (std *logger) DebugF(format string, args ...interface{}) {
 	std.Log(2, fmt.Sprintf(format, args...), 2)
 }
 
-func DebugTimes(times int, args ...interface{}) {
+func (std *logger) DebugTimes(times int, args ...interface{}) {
 	std.Log(2, fmt.Sprint(args...), times)
 }
 
-func DebugfTimes(times int, format string, args ...interface{}) {
+func (std *logger) DebugfTimes(times int, format string, args ...interface{}) {
 	std.Log(2, fmt.Sprintf(format, args...), times)
 }
 
-func Warn(args ...interface{}) {
+func (std *logger) Warn(args ...interface{}) {
 	std.Log(3, fmt.Sprint(args...), 2)
 }
 
-func Warnf(format string, args ...interface{}) {
+func (std *logger) Warnf(format string, args ...interface{}) {
 	std.Log(3, fmt.Sprintf(format, args...), 2)
 }
 
-func WarnTimes(times int, args ...interface{}) {
+func (std *logger) WarnTimes(times int, args ...interface{}) {
 	std.Log(3, fmt.Sprint(args...), times)
 }
 
-func WarnFTimes(times int, format string, args ...interface{}) {
+func (std *logger) WarnFTimes(times int, format string, args ...interface{}) {
 	std.Log(3, fmt.Sprintf(format, args...), times)
 }
 
-func Error(args ...interface{}) {
+func (std *logger) Error(args ...interface{}) {
 	std.Log(4, fmt.Sprint(args...), 2)
 }
 
-func Errorf(format string, args ...interface{}) {
+func (std *logger) Errorf(format string, args ...interface{}) {
 	std.Log(4, fmt.Sprintf(format, args...), 2)
 }
 
-func ErrorF(format string, args ...interface{}) {
+func (std *logger) ErrorF(format string, args ...interface{}) {
 	std.Log(4, fmt.Sprintf(format, args...), 2)
 }
 
-func ErrorTimes(times int, args ...interface{}) {
+func (std *logger) ErrorTimes(times int, args ...interface{}) {
 	std.Log(4, fmt.Sprint(args...), times)
 }
 
-func ErrorfTimes(times int, format string, args ...interface{}) {
+func (std *logger) ErrorfTimes(times int, format string, args ...interface{}) {
 	std.Log(4, fmt.Sprintf(format, args...), times)
 }
 
-func Panic(args ...interface{}) {
+func (std *logger) Panic(args ...interface{}) {
 	std.Log(5, fmt.Sprint(args...), 2)
 	panic(args)
 }
 
-func HttpInfo(args ...interface{}) {
+func (std *logger) HttpInfo(args ...interface{}) {
 	std.Log(6, fmt.Sprint(args...), -1)
+}
+
+type Logger interface {
+	Error(entries ...interface{})
+	Errorf(format string, entries ...interface{})
+
+	Info(entries ...interface{})
+	Infof(format string, entries ...interface{})
+
+	//Warning(entries ...interface{})
+	//Warningf(format string, entries ...interface{})
+
+	Debug(entries ...interface{})
+	Debugf(format string, entries ...interface{})
+	//
+	//Trace(entries ...interface{})
+	//Tracef(format string, entries ...interface{})
+	//
+	//Panic(entries ...interface{})
+	//Panicln(entries ...interface{})
+	//Panicf(format string, entries ...interface{})
+	//
+	//Fatalln(entries ...interface{})
+	//Fatal(entries ...interface{})
+	//Fatalf(format string, entries ...interface{})
+	//
+	//Println(entries ...interface{})
+	//Printf(format string, entries ...interface{})
 }

@@ -66,6 +66,6 @@ func (m MQRocket) Producer(topic string, key, _ string, data []byte) error {
 	if err != nil {
 		return errors.Wrapf(err, "send to ctg-mq failed")
 	}
-	loging.DebugF("send message success: result=%s\n", res.String())
+	loging.Log.Debugf("send message success: result=%s\n", res.String())
 	return nil
 }

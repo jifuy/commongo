@@ -108,6 +108,11 @@ func NewConsumerMQ(mqChg MqCfg) (ICustomer, func() error, error) {
 		var config = kafka.Config{
 			Brokers: mqChg.Kafka.Brokers,
 			Group:   mqChg.Kafka.Group,
+
+			SaslEnable: mqChg.Kafka.SaslEnable,
+			Algorithm:  mqChg.Kafka.Algorithm,
+			UserName:   mqChg.Kafka.UserName,
+			PassWord:   mqChg.Kafka.PassWord,
 		}
 		config.InitSarama()
 		return kafka.NewKafkaCustomer(config)

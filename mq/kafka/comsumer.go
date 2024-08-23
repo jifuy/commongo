@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/IBM/sarama"
-	logging "github.com/jifuy/commongo/loging"
+	"github.com/jifuy/commongo/loging"
 	"strings"
 )
 
@@ -69,7 +69,7 @@ func (consumer *Consumer) Cleanup(s sarama.ConsumerGroupSession) error {
 func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for message := range claim.Messages() {
 		consumer.cb(message.Value)
-		logging.DebugF("Partition:%d, Offset:%d, key:%s, value:%s\n", message.Partition, message.Offset, string(message.Key), string(message.Value))
+		loging.Log.Infof("Partition:%d, Offset:%d, key:%s, value:%s", message.Partition, message.Offset, string(message.Key), string(message.Value))
 		session.MarkMessage(message, "")
 	}
 

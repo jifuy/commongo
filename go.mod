@@ -5,7 +5,6 @@ go 1.21
 require (
 	github.com/IBM/sarama v1.42.1
 	github.com/apache/rocketmq-client-go/v2 v2.1.2
-	github.com/cihub/seelog v0.0.0-20170130134532-f561c5e57575
 	github.com/elastic/go-elasticsearch/v7 v7.17.10
 	github.com/elastic/go-elasticsearch/v8 v8.14.0
 	github.com/golang/snappy v0.0.4

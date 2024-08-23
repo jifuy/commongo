@@ -42,9 +42,9 @@ func (m MQKafkaService) Producer(topic string, key, _ string, data []byte) error
 	// 发送消息
 	pid, offset, err := m.P.SendMessage(msg)
 	if err != nil {
-		loging.Error("send msg failed, err:", err)
+		loging.Log.Error("send msg failed, err:", err)
 		return err
 	}
-	loging.InfoF("pid:%v offset:%v\n", pid, offset)
+	loging.Log.InfoF("pid:%v offset:%v\n", pid, offset)
 	return nil
 }

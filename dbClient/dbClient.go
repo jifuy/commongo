@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	logging "github.com/jifuy/commongo/loging"
+	"github.com/jifuy/commongo/loging"
 	"reflect"
 	"strconv"
 	"strings"
@@ -59,7 +59,7 @@ func SetUpDb(m DbInfo) (*sql.DB, error) {
 	return sDb, nil
 }
 
-func UpdateSql(SqlDb *sql.DB, tableName string, upFields map[string]interface{}, termFields map[string]interface{}) (int64, error) {
+func UpdateSql(logging loging.Logger, SqlDb *sql.DB, tableName string, upFields map[string]interface{}, termFields map[string]interface{}) (int64, error) {
 	updateFields := make([]string, 0)
 	updateValues := make([]interface{}, 0)
 	for key, value := range upFields {
@@ -74,15 +74,14 @@ func UpdateSql(SqlDb *sql.DB, tableName string, upFields map[string]interface{},
 	}
 
 	updateSQL := fmt.Sprintf("UPDATE %s SET %s WHERE %s", tableName, strings.Join(updateFields, ", "), strings.Join(whereFields, " and "))
-	logging.InfoF(updateSQL)
+	logging.Infof(updateSQL)
 	// 执行更新操作
 	updateValues = append(updateValues, whereValues...)
-	logging.InfoF("参数：%s", fmt.Sprintf(updateSQL, updateValues...))
+	logging.Infof("update sql：%s", fmt.Sprintf(strings.Replace(updateSQL, "?", "'%v'", -1), updateValues...))
 	result, err := SqlDb.Exec(updateSQL, updateValues...)
 
-	//sqlExec := fmt.Sprintf("UPDATE %s SET k_respara = \"%s\" WHERE k_sumalarmid = \"%s\"", tableName, infos.ResPara, infos.MainAlarmId)
 	if err != nil {
-		logging.Error("UPDATE recovertime error:" + err.Error())
+		logging.Error("UPDATE error:" + err.Error())
 		return 0, err
 	}
 	// 获取受影响的行数
@@ -91,11 +90,11 @@ func UpdateSql(SqlDb *sql.DB, tableName string, upFields map[string]interface{},
 		logging.Error(err)
 		return 0, err
 	}
-	logging.InfoF("Updated %d rows\n", rowsAffected)
+	logging.Infof("Updated %d rows\n", rowsAffected)
 	return rowsAffected, nil
 }
 
-func Query(SqlDb *sql.DB, sql string, describe TableDescribe) ([]map[string]interface{}, error) {
+func Query(logging loging.Logger, SqlDb *sql.DB, sql string, describe TableDescribe) ([]map[string]interface{}, error) {
 	rows, err := SqlDb.Query(sql)
 	logging.Info("[Sql] Exec : " + sql)
 	if err != nil {
@@ -223,7 +222,7 @@ func DescribeTable(SqlDb *sql.DB, table string) (TableDescribe, error) {
 	return td, nil
 }
 
-func Insert(SqlDb *sql.DB, table string, fieldData map[string]interface{}, describe TableDescribe) (string, error) {
+func Insert(logging loging.Logger, SqlDb *sql.DB, table string, fieldData map[string]interface{}, describe TableDescribe) (string, error) {
 	isDescribe := describe.Base != nil
 
 	var insertSql bytes.Buffer

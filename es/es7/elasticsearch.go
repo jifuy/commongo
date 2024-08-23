@@ -5,11 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/cihub/seelog"
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"github.com/jifuy/commongo/es/esutil"
-	logging "github.com/jifuy/commongo/loging"
 	"github.com/tidwall/sjson"
 	"io"
 	"strings"
@@ -34,10 +32,9 @@ func NewEsClient(config esutil.EsCfg) (*Esearch, error) {
 	}
 	q1, err := es.Info()
 	if err != nil {
-		logging.Error("ES连接失败！", err)
 		return nil, err
 	}
-	seelog.Debug("ES连接成功！", q1)
+	fmt.Println("ES连接成功！", q1)
 	ESClient = &Esearch{
 		Client: es,
 	}
@@ -52,7 +49,7 @@ func (e *Esearch) EsSearch(indexes []string, query string) (esutil.ResponseBody,
 		e.Client.Search.WithPretty(),
 	)
 	if err != nil {
-		logging.ErrorF("搜索失败：%s ", err)
+
 		return rsp, err
 	}
 	defer res.Body.Close()
@@ -61,7 +58,7 @@ func (e *Esearch) EsSearch(indexes []string, query string) (esutil.ResponseBody,
 	if err := json.Unmarshal(rspBody, &rsp); err != nil {
 		return rsp, fmt.Errorf("failed to unmarshal response body: %w", err)
 	}
-	logging.Debug("rsp---------", string(rspBody))
+	fmt.Println("rsp---------", string(rspBody))
 	return rsp, nil
 }
 
@@ -78,7 +75,6 @@ func (e *Esearch) EsPost(index, id, content string) error {
 	// 执行 Index 请求
 	res, err := req.Do(context.Background(), e.Client)
 	if err != nil {
-		logging.Debug("执行 Index 请求", err)
 		return err
 	}
 	defer res.Body.Close()
@@ -86,7 +82,7 @@ func (e *Esearch) EsPost(index, id, content string) error {
 		return fmt.Errorf("Index request failed: %s", res.Status())
 	}
 	// 获取 Index 请求的响应结果
-	logging.Debug(" 获取 Index 请求的响应结果: ", res.String())
+	fmt.Println(" 获取 Index 请求的响应结果: ", res.String())
 	return nil
 }
 
@@ -123,7 +119,6 @@ func (e *Esearch) BatchSend(index string, docType string, content map[string]str
 	// 执行 Index 请求
 	res, err := req.Do(context.Background(), e.Client)
 	if err != nil {
-		logging.Debug("执行 Index 请求", err)
 		return err
 	}
 	defer res.Body.Close()
@@ -131,6 +126,6 @@ func (e *Esearch) BatchSend(index string, docType string, content map[string]str
 		return fmt.Errorf("Index request failed: %s", res.Status())
 	}
 	// 获取 Index 请求的响应结果
-	logging.Debug(" 获取 Index 请求的响应结果: ", res.String())
+	fmt.Println(" 获取 Index 请求的响应结果: ", res.String())
 	return nil
 }
