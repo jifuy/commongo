@@ -175,9 +175,9 @@ type Level int
 
 var LevelMap = map[Level]string{
 	0: "[Print] ",
-	1: "[INFO]  ",
+	1: "[INFO] ",
 	2: "[DEBUG] ",
-	3: "[WARN]  ",
+	3: "[WARN] ",
 	4: "[ERROR] ",
 	5: "[PANIC] ",
 	6: "[Http] ",
@@ -224,7 +224,7 @@ func (l *logger) Log(level Level, args string, times int) {
 		buffer.WriteString(strconv.Itoa(line))
 	}
 
-	buffer.WriteString(" \t| ")
+	buffer.WriteString(" | ")
 	buffer.WriteString(args)
 	buffer.WriteString("\n")
 	out := buffer.Bytes()
