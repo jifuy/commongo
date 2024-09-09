@@ -50,8 +50,8 @@ func TestMQCus3(t *testing.T) {
 }
 
 func TestNewMQ4(t *testing.T) {
-	var mqCfg = MqCfg{MqType: "kafka", Kafka: KafkaCfg{Brokers: "127.0.0.1:9092,127.0.0.1:9093"}}
-	//var mqCfg = MqCfg{MqType: "kafka", Kafka: KafkaCfg{Brokers: "192.168.5.189:9094", SaslEnable: false, Group: "xiaofeizhu", UserName: "kafka", PassWord: "c!E0ULhH", Algorithm: "plain"}}
+	//var mqCfg = MqCfg{MqType: "kafka", Kafka: KafkaCfg{Brokers: "127.0.0.1:9092,127.0.0.1:9093"}}
+	var mqCfg = MqCfg{MqType: "kafka", Kafka: KafkaCfg{Brokers: "192.168.5.189:9094", SaslEnable: true, Group: "xiaofeizhu", Version: "2.4.0", UserName: "kafka", PassWord: "c!E0ULhH", Algorithm: "plain"}}
 	var mq1, ch, err = NewProducerMQ(mqCfg)
 	if err != nil {
 		fmt.Println("1111111err--------", err)
@@ -72,7 +72,7 @@ func TestNewMQ4(t *testing.T) {
 
 // rocket消费者，组不能相同
 func TestMQCus5(t *testing.T) {
-	var mqCfg = MqCfg{MqType: "kafka", Kafka: KafkaCfg{Brokers: "192.168.5.189:9094", SaslEnable: true, Group: "xiaofeizhu", UserName: "kafka", PassWord: "c!E0ULhH", Algorithm: "plain"}}
+	var mqCfg = MqCfg{MqType: "kafka", Kafka: KafkaCfg{Brokers: "192.168.5.189:9094", SaslEnable: true, Oldest: true, Group: "xiaofeizhu1", Version: "2.4.0", UserName: "kafka", PassWord: "c!E0ULhH", Algorithm: "plain"}}
 
 	var cus, ch, _ = NewConsumerMQ(mqCfg)
 	defer ch()

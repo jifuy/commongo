@@ -29,6 +29,7 @@ type KafkaCfg struct {
 
 	Group    string //消费者时 填写 消费组
 	Assignor string //消费者时 负载均衡策略  sticky  roundrobin range
+	Oldest   bool   //消费者时 填写 是否从头消费
 
 	SaslEnable bool   //有认证为true
 	Algorithm  string //加密形式 sha512 sha256 plain oauthbearer gssapi
@@ -106,13 +107,26 @@ func NewConsumerMQ(mqChg MqCfg) (ICustomer, func() error, error) {
 	switch mqChg.MqType {
 	case "kafka":
 		var config = kafka.Config{
+			Version: mqChg.Kafka.Version,
 			Brokers: mqChg.Kafka.Brokers,
 			Group:   mqChg.Kafka.Group,
+			Oldest:  mqChg.Kafka.Oldest,
 
 			SaslEnable: mqChg.Kafka.SaslEnable,
 			Algorithm:  mqChg.Kafka.Algorithm,
 			UserName:   mqChg.Kafka.UserName,
 			PassWord:   mqChg.Kafka.PassWord,
+
+			Realm:              mqChg.Kafka.Realm,
+			ServiceName:        mqChg.Kafka.ServiceName,
+			KeyTabPath:         mqChg.Kafka.KeyTabPath,
+			KerberosConfigPath: mqChg.Kafka.KerberosConfigPath,
+
+			UseTLS:    mqChg.Kafka.UseTLS,
+			VerifySSL: mqChg.Kafka.VerifySSL,
+			CertFile:  mqChg.Kafka.CertFile,
+			KeyFile:   mqChg.Kafka.KeyFile,
+			CaFile:    mqChg.Kafka.CaFile,
 		}
 		config.InitSarama()
 		return kafka.NewKafkaCustomer(config)
