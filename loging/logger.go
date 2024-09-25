@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strconv"
@@ -44,6 +45,7 @@ func (std *logger) SetLogFile(name string) {
 	std.appName = name
 
 	fileName := name + ".log"
+I:
 	read, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		// 获取文件所在目录
@@ -51,62 +53,16 @@ func (std *logger) SetLogFile(name string) {
 		err1 := os.MkdirAll(dir, 0777)
 		if err1 != nil {
 			fmt.Println("无法创建目录:", err1)
-			return
+			goto I
 		}
 		read, err = os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err != nil {
+			goto I
+		}
 	}
 	std.outFileWriter = read
 
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				fmt.Println("无法创建目录:", string(debug.Stack()))
-			}
-		}()
-		for {
-			//凌晨时刻更新
-			now := time.Now()
-			midnight := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())
-
-			select {
-			case <-time.After(midnight.Sub(now)):
-				defer std.outFileWriter.Close()
-				fileNamelod := name + "_" + time.Now().Add(-24*time.Hour).Format("20060102") + ".log"
-				read.Close()
-				os.Rename(name+".log", fileNamelod)
-				read, _ = os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-				std.outFileWriter = read
-			}
-			//	删除多余日志文件
-			sevenDaysAgo := now.AddDate(0, 0, -7) // 计算7天前的时间
-			// 打开目录
-			dirPath := filepath.Dir(fileName)
-			dir, err := os.Open(dirPath)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-			defer dir.Close()
-
-			// 读取目录中的文件
-			fileInfos, err := dir.Readdir(-1)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-			// 遍历目录中的文件
-			for _, fileInfo := range fileInfos {
-				if fileInfo.ModTime().Before(sevenDaysAgo) {
-					err := os.Remove(dirPath + "/" + fileInfo.Name())
-					if err != nil {
-						fmt.Println(err)
-					} else {
-						fmt.Println("已删除文件:", fileInfo.Name())
-					}
-				}
-			}
-		}
-	}()
+	go std.NewFile()
 
 	//如果当前日志文件大小超过1M，则创建新的日志文件
 	//go func() {
@@ -132,7 +88,60 @@ func (std *logger) SetLogFile(name string) {
 	//		}
 	//	}
 	//}()
+}
 
+func (std *logger) NewFile() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("无法创建目录:", string(debug.Stack()))
+			go std.NewFile()
+		}
+	}()
+	for {
+		//凌晨时刻更新
+		now := time.Now()
+		midnight := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 1, 0, now.Location())
+		select {
+		case <-time.After(midnight.Sub(now)):
+			defer std.outFileWriter.Close()
+			fileNamelod := std.appName + "_" + time.Now().Add(-24*time.Hour).Format("20060102") + ".log"
+			std.outFileWriter.Close()
+			_ = os.Rename(std.appName+".log", fileNamelod)
+			read, err := os.OpenFile(std.appName+".log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			std.outFileWriter = read
+		}
+		//	删除多余日志文件
+		sevenDaysAgo := now.AddDate(0, 0, -7) // 计算7天前的时间
+		// 打开目录
+		dirPath := filepath.Dir(std.appName + ".log")
+		dir, err := os.Open(dirPath)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		// 读取目录中的文件
+		fileInfos, err := dir.Readdir(-1)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		// 遍历目录中的文件
+		for _, fileInfo := range fileInfos {
+			if fileInfo.ModTime().Before(sevenDaysAgo) {
+				err := os.Remove(dirPath + "/" + fileInfo.Name())
+				if err != nil {
+					fmt.Println(err)
+				} else {
+					fmt.Println("已删除文件:", fileInfo.Name())
+				}
+			}
+		}
+		_ = dir.Close()
+	}
 }
 
 // SetAppName 设置项目名称
@@ -175,8 +184,8 @@ type Level int
 
 var LevelMap = map[Level]string{
 	0: "[Print] ",
-	1: "[INFO] ",
-	2: "[DEBUG] ",
+	1: "[DEBUG] ",
+	2: "[INFO] ",
 	3: "[WARN] ",
 	4: "[ERROR] ",
 	5: "[PANIC] ",
@@ -203,19 +212,52 @@ func ParseLogLevel(levelstr string) (Level, error) {
 	return 0, fmt.Errorf("invalid log level '%s' (info, debug, warn, error, fatal)", levelstr)
 }
 
+// 获取ANSI颜色代码
+func getAnsiColor(level Level) (colorCode string, resetCode string) {
+	switch level {
+	case Level(1):
+		colorCode = "\033[32m"
+	case Level(2):
+		colorCode = "\033[34m"
+	case Level(3):
+		colorCode = "\033[33m"
+	case Level(4):
+		colorCode = "\033[31m"
+	case Level(5):
+		colorCode = "\033[35m"
+	default:
+		colorCode = "\033[39m"
+	}
+	resetCode = "\033[0m"
+	return
+}
+
+// 去除ANSI颜色代码
+func removeAnsiCodes(input []byte) []byte {
+	ansiEscapePattern := `\x1b\[[0-9;]*m`
+	re := regexp.MustCompile(ansiEscapePattern)
+	return re.ReplaceAll(input, []byte{})
+}
+
 func (l *logger) Log(level Level, args string, times int) {
-	var buffer bytes.Buffer
-	buffer.WriteString(time.Now().Format("2006-01-02 15:04:05.000 "))
 	//判断日志级别
 	if level < l.NowLevel {
 		return
 	}
+	var buffer bytes.Buffer
+	buffer.WriteString(time.Now().Format("2006-01-02 15:04:05.000 "))
+
+	// 添加颜色代码
+	colorCode, resetCode := getAnsiColor(level)
+	buffer.WriteString(colorCode)
 	buffer.WriteString(LevelMap[level])
-	_, file, line, _ := runtime.Caller(times)
+	buffer.WriteString(resetCode)
+
+	_, file, line, _ := runtime.Caller(2)
 	fileList := strings.Split(file, "/")
 	// 最多显示两级路径
-	if len(fileList) > 2 {
-		fileList = fileList[len(fileList)-2 : len(fileList)]
+	if len(fileList) > 1 {
+		fileList = fileList[len(fileList)-1 : len(fileList)]
 	}
 
 	if times != -1 {
@@ -233,7 +275,8 @@ func (l *logger) Log(level Level, args string, times int) {
 	}
 	// 输出到文件或远程日志服务
 	if l.outFile {
-		_, _ = l.outFileWriter.Write(out)
+		plainOut := removeAnsiCodes(out)
+		_, _ = l.outFileWriter.Write(plainOut)
 	}
 	if l.outService {
 		for _, v := range l.outServiceLevel {
@@ -254,47 +297,47 @@ func (std *logger) Printf(format string, args ...interface{}) {
 }
 
 func (std *logger) Info(args ...interface{}) {
-	std.Log(1, fmt.Sprint(args...), 2)
+	std.Log(2, fmt.Sprint(args...), 2)
 }
 
 func (std *logger) Infof(format string, args ...interface{}) {
-	std.Log(1, fmt.Sprintf(format, args...), 2)
+	std.Log(2, fmt.Sprintf(format, args...), 2)
 }
 
 func (std *logger) InfoF(format string, args ...interface{}) {
-	std.Log(1, fmt.Sprintf(format, args...), 2)
+	std.Log(2, fmt.Sprintf(format, args...), 2)
 }
 
 // InfoTimes
 // times 意思是打印第几级函数调用
 func (std *logger) InfoTimes(times int, args ...interface{}) {
-	std.Log(1, fmt.Sprint(args...), times)
+	std.Log(2, fmt.Sprint(args...), times)
 }
 
 // InfoFTimes
 // times 意思是打印第几级函数调用
 func (std *logger) InfofTimes(times int, format string, args ...interface{}) {
-	std.Log(1, fmt.Sprintf(format, args...), times)
+	std.Log(2, fmt.Sprintf(format, args...), times)
 }
 
 func (std *logger) Debug(args ...interface{}) {
-	std.Log(2, fmt.Sprint(args...), 2)
+	std.Log(1, fmt.Sprint(args...), 2)
 }
 
 func (std *logger) Debugf(format string, args ...interface{}) {
-	std.Log(2, fmt.Sprintf(format, args...), 2)
+	std.Log(1, fmt.Sprintf(format, args...), 2)
 }
 
 func (std *logger) DebugF(format string, args ...interface{}) {
-	std.Log(2, fmt.Sprintf(format, args...), 2)
+	std.Log(1, fmt.Sprintf(format, args...), 2)
 }
 
 func (std *logger) DebugTimes(times int, args ...interface{}) {
-	std.Log(2, fmt.Sprint(args...), times)
+	std.Log(1, fmt.Sprint(args...), times)
 }
 
 func (std *logger) DebugfTimes(times int, format string, args ...interface{}) {
-	std.Log(2, fmt.Sprintf(format, args...), times)
+	std.Log(1, fmt.Sprintf(format, args...), times)
 }
 
 func (std *logger) Warn(args ...interface{}) {
@@ -349,11 +392,17 @@ type Logger interface {
 	Info(entries ...interface{})
 	Infof(format string, entries ...interface{})
 
-	//Warning(entries ...interface{})
-	//Warningf(format string, entries ...interface{})
+	Warn(entries ...interface{})
+	Warnf(format string, entries ...interface{})
 
 	Debug(entries ...interface{})
 	Debugf(format string, entries ...interface{})
+
+	//Fatal(v ...interface{})
+	//Fatalf(format string, v ...interface{})
+
+	//Panic(v ...interface{})
+	//Panicf(format string, v ...interface{})
 	//
 	//Trace(entries ...interface{})
 	//Tracef(format string, entries ...interface{})
@@ -368,4 +417,44 @@ type Logger interface {
 	//
 	//Println(entries ...interface{})
 	//Printf(format string, entries ...interface{})
+}
+
+var Default Logger
+
+func init() {
+	if Default == nil {
+		Default = Log
+	}
+}
+
+func Debug(args ...interface{}) {
+	Default.Debug(args...)
+}
+
+func Debugf(format string, entries ...interface{}) {
+	Default.Debugf(format, entries)
+}
+
+func Info(args ...interface{}) {
+	Default.Info(args...)
+}
+
+func Infof(format string, entries ...interface{}) {
+	Default.Infof(format, entries)
+}
+
+func Error(args ...interface{}) {
+	Default.Error(args...)
+}
+
+func Errorf(format string, entries ...interface{}) {
+	Default.Errorf(format, entries)
+}
+
+func Warn(args ...interface{}) {
+	Default.Warn(args...)
+}
+
+func Warnf(format string, entries ...interface{}) {
+	Default.Warnf(format, entries)
 }

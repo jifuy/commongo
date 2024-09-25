@@ -127,48 +127,53 @@ func Query(logging loging.Logger, SqlDb *sql.DB, sql string, describe TableDescr
 			if d == nil {
 				continue
 			}
-			//switch d.(type) {
-			//case time.Time:
-			//	item[columns[i]] = d.(time.Time)
-			//default:
-			//	if len(d.([]byte)) == 0 {
-			//		continue
-			//	}
-			//	if b, ok := d.([]byte); ok {
-			//		intValue, err3 := strconv.Atoi(string(b))
-			//		if err3 != nil {
-			//			item[columns[i]] = string(d.([]byte))
-			//		} else {
-			//			item[columns[i]] = intValue //取实际类型
-			//		}
-			//	}
-			//}
-			switch describe.Base[columns[i]] {
-			case "int":
-				if b, ok := d.([]byte); ok {
-					intValue, err3 := strconv.Atoi(string(b))
+
+			switch v := d.(type) {
+			case time.Time:
+				item[columns[i]] = d.(time.Time)
+			case string:
+				switch describe.Base[columns[i]] {
+				case "int":
+					intValue, err3 := strconv.Atoi(v)
 					if err3 != nil {
-						continue
+						item[columns[i]] = v
+					} else {
+						item[columns[i]] = intValue
 					}
-					item[columns[i]] = intValue //取实际类型
+				case "float":
+					floatNum, err4 := strconv.ParseFloat(v, 64)
+					if err4 != nil {
+						item[columns[i]] = v
+					} else {
+						item[columns[i]] = floatNum
+					}
+				default:
+					item[columns[i]] = v
 				}
-			case "string", "[]byte":
-				if len(d.([]byte)) == 0 {
+			case []byte:
+				if len(v) == 0 {
 					continue
 				}
-				if b, ok := d.([]byte); ok {
-					item[columns[i]] = string(b)
-				}
-			case "float":
-				if b, ok := d.([]byte); ok {
-					floatNum, err4 := strconv.ParseFloat(string(b), 64)
-					if err4 != nil {
-						continue
+				switch describe.Base[columns[i]] {
+				case "int":
+					intValue, err3 := strconv.Atoi(string(v))
+					if err3 != nil {
+						item[columns[i]] = string(v)
+					} else {
+						item[columns[i]] = intValue
 					}
-					item[columns[i]] = floatNum
+				case "string", "[]byte":
+					item[columns[i]] = string(v)
+				case "float":
+					floatNum, err4 := strconv.ParseFloat(string(v), 64)
+					if err4 != nil {
+						item[columns[i]] = string(v)
+					} else {
+						item[columns[i]] = floatNum
+					}
 				}
-			case "time":
-				item[columns[i]] = d.(time.Time)
+			default:
+				item[columns[i]] = v
 			}
 		}
 		list = append(list, item)
