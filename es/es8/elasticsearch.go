@@ -128,3 +128,42 @@ func (e *Esearch) BatchSend(index string, docType string, content map[string]str
 	fmt.Println(" 获取 Index 请求的响应结果: ", res.String())
 	return nil
 }
+
+func (e *Esearch) BatchInsert(index string, content map[string]string) error {
+	var buffer bytes.Buffer
+
+	for _, doc := range content {
+		// 每个doc必须在一行中，中间不能出现换行
+		doc = strings.Replace(doc, "\n", "", -1)
+		buffer.WriteString(`{"index":{}}`)
+		buffer.WriteString("\n")
+		buffer.WriteString(doc)
+		buffer.WriteString("\n")
+	}
+
+	// 调用 Bulk API（无需多余路径或参数）
+	res, err := e.Client.Bulk(bytes.NewReader(buffer.Bytes()), e.Client.Bulk.WithIndex(index))
+	if err != nil {
+		panic(err)
+	}
+	defer res.Body.Close()
+
+	////向 Elasticsearch 发送批量操作（Bulk Request）
+	//req := esapi.BulkRequest{
+	//	Index:        index,
+	//	Body:         strings.NewReader(buffer.String()),
+	//	Refresh: "true",
+	//}
+	//// 执行 Index 请求
+	//res, err := req.Do(context.Background(), e.Client)
+	//if err != nil {
+	//	return err
+	//}
+	//defer res.Body.Close()
+	if res.IsError() {
+		return fmt.Errorf("Index request failed: %s", res.Status())
+	}
+	// 获取 Index 请求的响应结果
+	fmt.Println(" 获取 Index 请求的响应结果: ", res.String())
+	return nil
+}
