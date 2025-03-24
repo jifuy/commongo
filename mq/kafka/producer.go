@@ -11,6 +11,7 @@ type MQKafkaService struct {
 	Brokers string
 	P       sarama.SyncProducer
 	C       sarama.ConsumerGroup
+	Config  Config
 }
 
 func NewKafkaProducer(config Config) (MQKafkaService, func() error, error) {
