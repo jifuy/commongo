@@ -63,6 +63,8 @@ type Config struct {
 	//增加backoff
 	Backoff string
 	saram   *sarama.Config
+
+	MaxProcessingTimeMilliSecond int
 }
 
 func (c *Config) newTLSConfiguration() (*tls.Config, error) {
@@ -107,21 +109,24 @@ func (c *Config) InitSarama() error {
 	// and usually more convenient, but can take up a substantial amount of
 	// memory if you have many topics and partitions. Defaults to true.
 
-	//saramaConfig.Metadata.Full = false // Defaults to true.
+	saramaConfig.Metadata.Full = false // Defaults to true.
 
 	if c.Group != "" {
 		// 调整会话超时时间和心跳间隔
-		saramaConfig.Consumer.Group.Session.Timeout = 30 * time.Second   //消费者组会话超时
-		saramaConfig.Consumer.Group.Heartbeat.Interval = 3 * time.Second //消费者发送心跳的时间间隔
-		saramaConfig.Consumer.MaxProcessingTime = 10 * time.Minute       //如果处理时间超过此值，可能会导致消息积压或订阅被放弃。
+		//saramaConfig.Consumer.Group.Session.Timeout = 30 * time.Second   //消费者组会话超时
+		//saramaConfig.Consumer.Group.Heartbeat.Interval = 3 * time.Second //消费者发送心跳的时间间隔
+		//saramaConfig.Consumer.MaxProcessingTime = 10 * time.Minute       //如果处理时间超过此值，可能会导致消息积压或订阅被放弃。
 		// 自动提交偏移量
-		saramaConfig.Consumer.Offsets.AutoCommit.Enable = false //不自动提交偏移量
+		//saramaConfig.Consumer.Offsets.AutoCommit.Enable = false //不自动提交偏移量
 		//saramaConfig.Consumer.Offsets.AutoCommit.Interval = 5 * time.Second
 		// 调整拉取参数
-		saramaConfig.Consumer.Fetch.Default = 1024      // 默认拉取 1 KB 数据
-		saramaConfig.Consumer.Fetch.Min = 1024          // 最小拉取 1 字节数据
-		saramaConfig.Net.ReadTimeout = 60 * time.Second // 网络读取超时时间
+		//saramaConfig.Consumer.Fetch.Default = 1024      // 默认拉取 1 KB 数据
+		//saramaConfig.Consumer.Fetch.Min = 1024          // 最小拉取 1 字节数据
+		//saramaConfig.Net.ReadTimeout = 60 * time.Second // 网络读取超时时间
+	}
 
+	if c.MaxProcessingTimeMilliSecond > 100 {
+		saramaConfig.Consumer.MaxProcessingTime = time.Duration(c.MaxProcessingTimeMilliSecond) * time.Millisecond
 	}
 
 	ver, err := sarama.ParseKafkaVersion(c.Version)

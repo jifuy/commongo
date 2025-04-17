@@ -48,12 +48,12 @@ func NewRocketCustomer(config Config) (MQRocket, func() error, error) {
 	// 消费者连接
 	com, err := rocketmq.NewPushConsumer(options...)
 	if err != nil {
-		loging.Log.Debug("消费者连接失败！")
+		loging.Error("消费者连接失败！")
 		return MQRocket{}, nil, err
 	}
 	err = com.Start()
 	if err != nil {
-		loging.Log.Debug("消费者启动失败！")
+		loging.Error("消费者启动失败！")
 		return MQRocket{}, nil, err
 	}
 	return MQRocket{C: com},
@@ -66,7 +66,7 @@ func (r MQRocket) Consumer(topic, _, _ string, f func(b []byte) bool) (func() er
 	err := r.C.Subscribe(topic, consumer.MessageSelector{}, func(ctx context.Context, ext ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
 		for _, i := range ext {
 			if ok := f(i.Body); !ok {
-				loging.Log.Debug("消费失败")
+				loging.Error("消费失败")
 			}
 		}
 		return consumer.ConsumeSuccess, nil

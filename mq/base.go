@@ -46,6 +46,8 @@ type KafkaCfg struct {
 	CertFile  string
 	KeyFile   string
 	CaFile    string
+
+	MaxProcessingTimeMilliSecond int
 }
 
 type RabbitCfg struct {
@@ -86,6 +88,8 @@ func NewProducerMQ(mqChg MqCfg) (IProducer, func() error, error) {
 			CertFile:  mqChg.Kafka.CertFile,
 			KeyFile:   mqChg.Kafka.KeyFile,
 			CaFile:    mqChg.Kafka.CaFile,
+
+			MaxProcessingTimeMilliSecond: mqChg.Kafka.MaxProcessingTimeMilliSecond,
 		}
 		config.InitSarama()
 		return kafka.NewKafkaProducer(config)
@@ -127,6 +131,8 @@ func NewConsumerMQ(mqChg MqCfg) (ICustomer, func() error, error) {
 			CertFile:  mqChg.Kafka.CertFile,
 			KeyFile:   mqChg.Kafka.KeyFile,
 			CaFile:    mqChg.Kafka.CaFile,
+
+			MaxProcessingTimeMilliSecond: mqChg.Kafka.MaxProcessingTimeMilliSecond,
 		}
 		config.InitSarama()
 		return kafka.NewKafkaCustomer(config)
