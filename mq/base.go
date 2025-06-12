@@ -3,12 +3,13 @@ package mq
 import (
 	"fmt"
 	"github.com/jifuy/commongo/mq/kafka"
+	"github.com/jifuy/commongo/mq/model"
 	"github.com/jifuy/commongo/mq/rocket"
 )
 
 // 也长连接
 type ICustomer interface {
-	Consumer(topic, group, routekey string, f func(b []byte) bool) (func() error, error)
+	Consumer(topic, group, routekey string, f func(b model.ConsumerMsg) bool) (func() error, error)
 }
 
 // 不需要每次发送消息都重新连接和关闭连接因为频繁的连接和断开会增加网络开销和延迟。提高效率

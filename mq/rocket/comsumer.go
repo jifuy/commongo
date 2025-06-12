@@ -7,6 +7,7 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/jifuy/commongo/loging"
 	"github.com/jifuy/commongo/mq/kafka"
+	"github.com/jifuy/commongo/mq/model"
 	"github.com/pkg/errors"
 	"strings"
 )
@@ -62,10 +63,10 @@ func NewRocketCustomer(config Config) (MQRocket, func() error, error) {
 		}, nil
 }
 
-func (r MQRocket) Consumer(topic, _, _ string, f func(b []byte) bool) (func() error, error) {
+func (r MQRocket) Consumer(topic, _, _ string, f func(b model.ConsumerMsg) bool) (func() error, error) {
 	err := r.C.Subscribe(topic, consumer.MessageSelector{}, func(ctx context.Context, ext ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
 		for _, i := range ext {
-			if ok := f(i.Body); !ok {
+			if ok := f(model.ConsumerMsg{Value: i.Body, Offset: i.QueueOffset, Partition: int32(i.Queue.QueueId)}); !ok {
 				loging.Error("消费失败")
 			}
 		}

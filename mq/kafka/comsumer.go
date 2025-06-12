@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/IBM/sarama"
 	"github.com/jifuy/commongo/loging"
+	"github.com/jifuy/commongo/mq/model"
 	"strings"
 	"time"
 )
@@ -24,12 +25,8 @@ func NewKafkaCustomer(config Config) (MQKafkaService, func() error, error) {
 		}, nil
 }
 
-func SetLogger(logger sarama.StdLogger) {
-	sarama.Logger = logger
-}
-
 // Consumer 消费者组 组不相同时都可以消费到,启动吧没消费的也消费了
-func (m MQKafkaService) Consumer(topic, _, _ string, f func(b []byte) bool) (func() error, error) {
+func (m MQKafkaService) Consumer(topic, _, _ string, f func(b model.ConsumerMsg) bool) (func() error, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	consumer := Consumer{cb: f}
@@ -73,7 +70,7 @@ func (m MQKafkaService) Consumer(topic, _, _ string, f func(b []byte) bool) (fun
 }
 
 type Consumer struct {
-	cb func(b []byte) bool
+	cb func(msg model.ConsumerMsg) bool
 }
 
 func (consumer *Consumer) Setup(s sarama.ConsumerGroupSession) error {
@@ -88,7 +85,10 @@ func (consumer *Consumer) Cleanup(s sarama.ConsumerGroupSession) error {
 func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for message := range claim.Messages() {
 		//loging.Infof("Partition:%d, Offset:%d, key:%s", message.Partition, message.Offset, string(message.Key))
-		if !consumer.cb(message.Value) {
+		if !consumer.cb(model.ConsumerMsg{
+			Value:     message.Value,
+			Partition: message.Partition,
+			Offset:    message.Offset}) {
 			// 如果回调函数返回 false，不确认消息
 			loging.Warnf("Callback returned false, not marking message as processed. Partition:%d, Offset:%d, key:%s, value:%s", message.Partition, message.Offset, string(message.Key), string(message.Value))
 			continue

@@ -432,7 +432,7 @@ func Debug(args ...interface{}) {
 }
 
 func Debugf(format string, entries ...interface{}) {
-	Default.Debugf(format, entries)
+	Default.Debugf(format, entries...)
 }
 
 func Info(args ...interface{}) {
@@ -440,7 +440,7 @@ func Info(args ...interface{}) {
 }
 
 func Infof(format string, entries ...interface{}) {
-	Default.Infof(format, entries)
+	Default.Infof(format, entries...)
 }
 
 func Error(args ...interface{}) {
@@ -448,7 +448,7 @@ func Error(args ...interface{}) {
 }
 
 func Errorf(format string, entries ...interface{}) {
-	Default.Errorf(format, entries)
+	Default.Errorf(format, entries...)
 }
 
 func Warn(args ...interface{}) {
@@ -456,5 +456,5 @@ func Warn(args ...interface{}) {
 }
 
 func Warnf(format string, entries ...interface{}) {
-	Default.Warnf(format, entries)
+	Default.Warnf(format, entries...)
 }
