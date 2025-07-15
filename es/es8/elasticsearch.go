@@ -167,3 +167,28 @@ func (e *Esearch) BatchInsert(index string, content map[string]string) error {
 	fmt.Println(" 获取 Index 请求的响应结果: ", res.String())
 	return nil
 }
+
+// DeleteIndexesByPattern 批量模糊删除索引，pattern 支持通配符（如 "logs-*"）
+func (e *Esearch) DeleteIndexesByPattern(pattern ...string) error {
+	if e.Client == nil {
+		return fmt.Errorf("elasticsearch client is nil")
+	}
+
+	// 构造 DeleteIndex 请求
+	req := esapi.IndicesDeleteRequest{
+		Index: pattern,
+	}
+
+	res, err := req.Do(context.Background(), e.Client)
+	if err != nil {
+		return fmt.Errorf("failed to send delete index request: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return fmt.Errorf("delete index failed with status: %s", res.Status())
+	}
+
+	fmt.Println("Successfully deleted indexes matching pattern:", pattern)
+	return nil
+}

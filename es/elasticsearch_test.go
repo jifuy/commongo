@@ -58,3 +58,17 @@ func TestNewEsBatch(t *testing.T) {
 	cli.BatchSend("xsqindex", "", msg)
 	t.Log("hello world")
 }
+
+func TestNewBatchDEL(t *testing.T) {
+	config := esutil.EsCfg{
+		Addresses: []string{"http://127.0.0.1:9200"},
+		//UserName:  "elastic",
+		//PassWord:  "123456",
+		Version: 7,
+		DocType: "_doc",
+	}
+	cli, _ := NewEsClient(config)
+
+	err := cli.DeleteIndexesByPattern("xsqindex-*", "xsqindex1-*")
+	t.Log("hello world", err)
+}

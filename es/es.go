@@ -10,6 +10,7 @@ type EsCli interface {
 	EsSearch(indexes []string, query string) (esutil.ResponseBody, error)
 	EsPost(index string, id string, content string) error
 	BatchSend(index string, docType string, content map[string]string) error
+	DeleteIndexesByPattern(index ...string) error
 }
 
 func NewEsClient(config esutil.EsCfg) (EsCli, error) {
