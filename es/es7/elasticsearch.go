@@ -210,3 +210,85 @@ func (e *Esearch) DeleteIndexesByPattern(pattern ...string) error {
 	fmt.Printf("Successfully deleted indexes matching pattern '%s': %v\n", pattern, allIndexes)
 	return nil
 }
+
+func (e *Esearch) DeleteDuplicateDoc(index, field string) error {
+	duplicateMap, err := e.FindDuplicateDocs(index, field)
+	if err != nil {
+		return err
+	}
+	var buffer bytes.Buffer
+	for key, ids := range duplicateMap {
+		keys := strings.Split(key, "::")
+		_index := keys[0]
+		for _, id := range ids {
+			meta := fmt.Sprintf(`{ "delete" : { "_index" : "%s", "_id" : "%s" } }%s`, _index, id, "\n")
+			buffer.WriteString(meta)
+		}
+	}
+	err = e.BulkReq(buffer.String())
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *Esearch) FindDuplicateDocs(index, field string) (map[string][]string, error) {
+	// 找出所有重复的 doc_id 值
+	query := fmt.Sprintf(`{"size": 0,"aggs":{"duplicate_doc_ids":{"terms":{"field":"%s.keyword","min_doc_count":2,"size":100000}}}}`, field)
+	duplicates, err := e.EsSearch([]string{index}, query)
+	if err != nil {
+		return nil, err
+	}
+	docids := []string{}
+	for _, d := range duplicates.Aggregations.DuplicateDocIds.Buckets {
+		fmt.Println("d", d)
+		docids = append(docids, d.Key)
+	}
+	if len(docids) == 0 {
+		return nil, fmt.Errorf("no duplicate docs found")
+	}
+	// 按重复的 doc_id 分组，保留最新文档
+	query2 := fmt.Sprintf(`{"query":{"terms":{"%s":[]}},"sort":[{"timestamp":{"order":"desc"}}]}`, field)
+	query3, err := sjson.Set(query2, fmt.Sprintf("query.terms.%s", field), docids)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("query3", query3)
+	resp, err := e.EsSearch([]string{index}, query3)
+
+	duplicateMap := make(map[string][]string, 0)
+	for _, d := range resp.Hits.Hits {
+		val := d.Source[field]
+		id := d.Id
+		key := d.Index + "::" + fmt.Sprintf("%v", val)
+		duplicateMap[key] = append(duplicateMap[key], id)
+	}
+	if len(duplicateMap) == 0 {
+		return nil, fmt.Errorf("no duplicateMap found")
+	}
+	// 保留最新
+	for k, v := range duplicateMap {
+		duplicateMap[k] = v[1:]
+	}
+	fmt.Println("ll", duplicateMap)
+	return duplicateMap, nil
+}
+
+func (e *Esearch) BulkReq(content string) error {
+	// Step 3: 发送 Bulk Delete 请求
+	req := esapi.BulkRequest{
+		Body: strings.NewReader(content),
+	}
+	res, err := req.Do(context.Background(), e.Client)
+	if err != nil {
+		return fmt.Errorf("bulk delete failed: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return fmt.Errorf("bulk delete request failed with status: %s", res.Status())
+	}
+
+	fmt.Println("Successfully deleted duplicate documents.")
+	return nil
+}

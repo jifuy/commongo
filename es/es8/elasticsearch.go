@@ -192,3 +192,7 @@ func (e *Esearch) DeleteIndexesByPattern(pattern ...string) error {
 	fmt.Println("Successfully deleted indexes matching pattern:", pattern)
 	return nil
 }
+
+func (e *Esearch) DeleteDuplicateDoc(index, field string) error {
+	return nil
+}

@@ -69,6 +69,20 @@ func TestNewBatchDEL(t *testing.T) {
 	}
 	cli, _ := NewEsClient(config)
 
-	err := cli.DeleteIndexesByPattern("xsqindex-*", "xsqindex1-*")
+	err := cli.DeleteIndexesByPattern("my*")
+	t.Log("hello world", err)
+}
+
+func TestNewBatchDELDOC(t *testing.T) {
+	config := esutil.EsCfg{
+		Addresses: []string{"http://127.0.0.1:9200"},
+		//UserName:  "elastic",
+		//PassWord:  "123456",
+		Version: 7,
+		DocType: "_doc",
+	}
+	cli, _ := NewEsClient(config)
+
+	err := cli.DeleteDuplicateDoc("my_index", "keysq")
 	t.Log("hello world", err)
 }
