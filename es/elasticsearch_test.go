@@ -3,6 +3,7 @@ package es
 import (
 	"fmt"
 	"github.com/jifuy/commongo/es/esutil"
+	"log"
 	"testing"
 	"time"
 )
@@ -69,7 +70,7 @@ func TestNewBatchDEL(t *testing.T) {
 	}
 	cli, _ := NewEsClient(config)
 
-	err := cli.DeleteIndexesByPattern("my*")
+	err := cli.DeleteIndexesByPattern("my_index_202507")
 	t.Log("hello world", err)
 }
 
@@ -85,4 +86,20 @@ func TestNewBatchDELDOC(t *testing.T) {
 
 	err := cli.DeleteDuplicateDoc("my_index", "keysq")
 	t.Log("hello world", err)
+}
+
+func TestMergeIndexes(t *testing.T) {
+	config := esutil.EsCfg{
+		Addresses: []string{"http://127.0.0.1:9200"},
+		//UserName:  "elastic",
+		//PassWord:  "123456",
+		Version: 7,
+		DocType: "_doc",
+	}
+	cli, _ := NewEsClient(config)
+
+	err := cli.MergeIndexes([]string{"my_index_2025072*"}, "my_index_202507")
+	if err != nil {
+		log.Fatalf("Merge failed: %v", err)
+	}
 }

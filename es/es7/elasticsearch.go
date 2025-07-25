@@ -8,9 +8,11 @@ import (
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"github.com/jifuy/commongo/es/esutil"
+	"github.com/jifuy/commongo/loging"
 	"github.com/tidwall/sjson"
 	"io"
 	"strings"
+	"time"
 )
 
 var ESClient *Esearch
@@ -34,7 +36,7 @@ func NewEsClient(config esutil.EsCfg) (*Esearch, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("ES连接成功！", q1)
+	loging.Debug("ES连接成功！", q1)
 	ESClient = &Esearch{
 		Client: es,
 	}
@@ -58,7 +60,7 @@ func (e *Esearch) EsSearch(indexes []string, query string) (esutil.ResponseBody,
 	if err := json.Unmarshal(rspBody, &rsp); err != nil {
 		return rsp, fmt.Errorf("failed to unmarshal response body: %w", err)
 	}
-	fmt.Println("rsp---------", string(rspBody))
+	loging.Debug("resp:", string(rspBody))
 	return rsp, nil
 }
 
@@ -131,7 +133,7 @@ func (e *Esearch) BatchSend(index string, docType string, content map[string]str
 }
 
 // ListIndexesByPattern 模糊查询匹配的索引列表，pattern 支持通配符，如 "test-202506*"
-func (e *Esearch) ListIndexesByPattern(pattern string) ([]string, error) {
+func (e *Esearch) ListIndexesByPattern(pattern []string) ([]string, error) {
 	if e.Client == nil {
 		return nil, fmt.Errorf("elasticsearch client is nil")
 	}
@@ -140,7 +142,7 @@ func (e *Esearch) ListIndexesByPattern(pattern string) ([]string, error) {
 	req := esapi.CatIndicesRequest{
 		Format: "json",
 		H:      []string{"index"},
-		Index:  []string{pattern}, // 支持通配符匹配
+		Index:  pattern, // 支持通配符匹配
 	}
 
 	res, err := req.Do(context.Background(), e.Client)
@@ -177,7 +179,7 @@ func (e *Esearch) DeleteIndexesByPattern(pattern ...string) error {
 	var allIndexes []string
 	for _, part := range pattern {
 		if strings.Contains(part, "*") {
-			partIndexes, err := e.ListIndexesByPattern(part)
+			partIndexes, err := e.ListIndexesByPattern([]string{part})
 			if err != nil {
 				return fmt.Errorf("failed to list all indexes: %s,%w", part, err)
 			}
@@ -188,7 +190,7 @@ func (e *Esearch) DeleteIndexesByPattern(pattern ...string) error {
 	}
 
 	if len(allIndexes) == 0 {
-		fmt.Println("No indexes matched the pattern:", pattern)
+		loging.Debug("No indexes matched the pattern:", pattern)
 		return nil
 	}
 
@@ -204,10 +206,16 @@ func (e *Esearch) DeleteIndexesByPattern(pattern ...string) error {
 	defer res.Body.Close()
 
 	if res.IsError() {
-		return fmt.Errorf("delete index failed with status: %s", res.Status())
+		// 如果错误是 "index_not_found_exception"（HTTP 404），则不报错
+		if res.StatusCode == 404 {
+			loging.Warn("Index not found, skip deletion.")
+			return nil
+		}
+		// 其他错误仍然返回
+		return fmt.Errorf("delete index failed with status: %v", res)
 	}
 
-	fmt.Printf("Successfully deleted indexes matching pattern '%s': %v\n", pattern, allIndexes)
+	loging.Debugf("Successfully deleted indexes matching pattern '%s': %v", pattern, allIndexes)
 	return nil
 }
 
@@ -235,13 +243,13 @@ func (e *Esearch) DeleteDuplicateDoc(index, field string) error {
 func (e *Esearch) FindDuplicateDocs(index, field string) (map[string][]string, error) {
 	// 找出所有重复的 doc_id 值
 	query := fmt.Sprintf(`{"size": 0,"aggs":{"duplicate_doc_ids":{"terms":{"field":"%s.keyword","min_doc_count":2,"size":100000}}}}`, field)
+	loging.Debug("duplicates req:", query)
 	duplicates, err := e.EsSearch([]string{index}, query)
 	if err != nil {
 		return nil, err
 	}
 	docids := []string{}
 	for _, d := range duplicates.Aggregations.DuplicateDocIds.Buckets {
-		fmt.Println("d", d)
 		docids = append(docids, d.Key)
 	}
 	if len(docids) == 0 {
@@ -253,7 +261,7 @@ func (e *Esearch) FindDuplicateDocs(index, field string) (map[string][]string, e
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("query3", query3)
+	loging.Debug("duplicates docs req:", query3)
 	resp, err := e.EsSearch([]string{index}, query3)
 
 	duplicateMap := make(map[string][]string, 0)
@@ -270,7 +278,7 @@ func (e *Esearch) FindDuplicateDocs(index, field string) (map[string][]string, e
 	for k, v := range duplicateMap {
 		duplicateMap[k] = v[1:]
 	}
-	fmt.Println("ll", duplicateMap)
+	loging.Debug("duplicateMap:", duplicateMap)
 	return duplicateMap, nil
 }
 
@@ -289,6 +297,118 @@ func (e *Esearch) BulkReq(content string) error {
 		return fmt.Errorf("bulk delete request failed with status: %s", res.Status())
 	}
 
-	fmt.Println("Successfully deleted duplicate documents.")
+	loging.Debug("Successfully deleted duplicate documents.")
+	return nil
+}
+
+// MergeIndexes 合并多个源索引到一个目标索引
+func (e *Esearch) MergeIndexes(sourceIndexes []string, targetIndex string, startTime, endTime string) error {
+	if e.Client == nil {
+		return fmt.Errorf("elasticsearch client is nil")
+	}
+
+	// 构建 Reindex body
+	body := map[string]interface{}{
+		"source": map[string]interface{}{
+			"index": sourceIndexes,
+			"query": map[string]interface{}{
+				"range": map[string]interface{}{
+					"timestamp": map[string]string{
+						"gte": startTime,
+						"lt":  endTime,
+					},
+				},
+			},
+		},
+		"dest": map[string]interface{}{
+			"index": targetIndex,
+		},
+	}
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(body); err != nil {
+		return fmt.Errorf("failed to encode reindex body: %w", err)
+	}
+
+	// 发送 Reindex 请求
+	res, err := e.Client.Reindex(
+		&buf,
+		e.Client.Reindex.WithRefresh(true),
+	)
+	if err != nil {
+		return fmt.Errorf("reindex request failed: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return fmt.Errorf("reindex failed with status: %v", res)
+	}
+
+	loging.Debugf("Successfully merged indexes %v into %s", sourceIndexes, targetIndex)
+	return nil
+}
+
+// SplitIndexByTimestampRange 根据 timestamp 字段的时间范围拆分数据到不同索引
+func (e *Esearch) SplitIndexByTimestampRange(sourceIndex string, targetIndexes []string) error {
+	if e.Client == nil {
+		return fmt.Errorf("elasticsearch client is nil")
+	}
+
+	for _, targetIndex := range targetIndexes {
+		// 从目标索引名提取日期，例如 my_index_20250801 → 2025-08-01
+		dateStr := strings.TrimPrefix(targetIndex, "my_index_") // 假设前缀是固定的
+		if len(dateStr) != 8 {
+			return fmt.Errorf("invalid target index name format: %s", targetIndex)
+		}
+		startDate := dateStr[:4] + "-" + dateStr[4:6] + "-" + dateStr[6:] // → 2025-08-01
+
+		// 计算第二天的日期
+		nextDate, err := time.Parse("2006-01-02", startDate)
+		if err != nil {
+			return fmt.Errorf("failed to parse date: %w", err)
+		}
+		endDate := nextDate.AddDate(0, 0, 1).Format("2006-01-02") // → 2025-08-02
+
+		// 构建带 range 查询的 reindex body
+		body := map[string]interface{}{
+			"source": map[string]interface{}{
+				"index": []string{sourceIndex},
+				"query": map[string]interface{}{
+					"range": map[string]interface{}{
+						"timestamp": map[string]string{
+							"gte": startDate + "T00:00:00",
+							"lt":  endDate + "T00:00:00",
+						},
+					},
+				},
+			},
+			"dest": map[string]interface{}{
+				"index": targetIndex,
+			},
+		}
+
+		var buf bytes.Buffer
+		if err := json.NewEncoder(&buf).Encode(body); err != nil {
+			return fmt.Errorf("failed to encode reindex body: %w", err)
+		}
+
+		// 发送 Reindex 请求
+		res, err := e.Client.Reindex(
+			&buf,
+			e.Client.Reindex.WithRefresh(true),
+		)
+		if err != nil {
+			return fmt.Errorf("reindex request failed for target %s: %w", targetIndex, err)
+		}
+		defer res.Body.Close()
+
+		if res.IsError() {
+			return fmt.Errorf("reindex failed for target %s with status: %s", targetIndex, res.Status())
+		}
+
+		fmt.Printf("Successfully split index %s into %s with timestamp >= %sT00:00:00 and < %sT00:00\n",
+			sourceIndex, targetIndex, startDate, endDate)
+	}
+
 	return nil
 }

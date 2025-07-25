@@ -12,6 +12,8 @@ type EsCli interface {
 	BatchSend(index string, docType string, content map[string]string) error
 	DeleteIndexesByPattern(index ...string) error
 	DeleteDuplicateDoc(index, field string) error
+	MergeIndexes(sourceIndexes []string, targetIndex string, startTime, endTime string) error
+	ListIndexesByPattern(pattern []string) ([]string, error)
 }
 
 func NewEsClient(config esutil.EsCfg) (EsCli, error) {

@@ -8,6 +8,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/jifuy/commongo/es/esutil"
+	"github.com/jifuy/commongo/loging"
 	"github.com/tidwall/sjson"
 	"io"
 	"strings"
@@ -57,7 +58,7 @@ func (e *Esearch) EsSearch(indexes []string, query string) (esutil.ResponseBody,
 	if err := json.Unmarshal(rspBody, &rsp); err != nil {
 		return rsp, fmt.Errorf("failed to unmarshal response body: %w", err)
 	}
-	fmt.Println("rsp---------", string(rspBody))
+	loging.Debug("resp:", string(rspBody))
 	return rsp, nil
 }
 
@@ -195,4 +196,79 @@ func (e *Esearch) DeleteIndexesByPattern(pattern ...string) error {
 
 func (e *Esearch) DeleteDuplicateDoc(index, field string) error {
 	return nil
+}
+
+// MergeIndexes 合并多个源索引到一个目标索引
+func (e *Esearch) MergeIndexes(sourceIndexes []string, targetIndex string, startTime, endTime string) error {
+	if e.Client == nil {
+		return fmt.Errorf("elasticsearch client is nil")
+	}
+
+	// 构建 Reindex body
+	body := map[string]interface{}{
+		"source": map[string]interface{}{
+			"index": sourceIndexes,
+		},
+		"dest": map[string]interface{}{
+			"index": targetIndex,
+		},
+	}
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(body); err != nil {
+		return fmt.Errorf("failed to encode reindex body: %w", err)
+	}
+
+	// 发送 Reindex 请求
+	res, err := e.Client.Reindex(
+		&buf,
+		e.Client.Reindex.WithRefresh(true),
+	)
+	if err != nil {
+		return fmt.Errorf("reindex request failed: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return fmt.Errorf("reindex failed with status: %v", res)
+	}
+
+	fmt.Printf("Successfully merged indexes %v into %s\n", sourceIndexes, targetIndex)
+	return nil
+}
+
+func (e *Esearch) ListIndexesByPattern(pattern []string) ([]string, error) {
+	if e.Client == nil {
+		return nil, fmt.Errorf("elasticsearch client is nil")
+	}
+
+	// 构造 CatIndicesRequest 请求，并设置 index 参数为 pattern
+	req := esapi.CatIndicesRequest{
+		Format: "json",
+		H:      []string{"index"},
+		Index:  pattern, // 支持通配符匹配
+	}
+
+	res, err := req.Do(context.Background(), e.Client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send list indexes request: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return nil, fmt.Errorf("list indexes failed with status: %s", res.Status())
+	}
+
+	var indices []map[string]interface{}
+	if err := json.NewDecoder(res.Body).Decode(&indices); err != nil {
+		return nil, fmt.Errorf("failed to decode response body: %w", err)
+	}
+
+	indexNames := make([]string, 0, len(indices))
+	for _, idx := range indices {
+		if index, ok := idx["index"].(string); ok {
+			indexNames = append(indexNames, index)
+		}
+	}
+	return indexNames, nil
 }
